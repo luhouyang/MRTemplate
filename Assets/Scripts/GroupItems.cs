@@ -16,7 +16,7 @@ public class GroupItems : MonoBehaviour
 
     [Header("Meseum Experience")]
     [SerializeField] private bool isMuseumExperience = false;
-    [SerializeField] private GameObject museumArrangement;
+    [SerializeField] private GameObject museumLayout;
 
     void Start()
     {

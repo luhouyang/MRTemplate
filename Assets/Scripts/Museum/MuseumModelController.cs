@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Controls MuseumLayout loading
 namespace MuseumModel
 {
     public class MuseumModelController : MonoBehaviour

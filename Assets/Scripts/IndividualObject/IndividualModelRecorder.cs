@@ -1,7 +1,9 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Microsoft.MixedReality.Toolkit.MRTemplate;
 
+// Contains DataModule, Audio init, SetRecording, Experiment flows, QNA
 namespace IndividualModel
 {
     public class IndividualModelRecorder : MonoBehaviour
@@ -15,7 +17,7 @@ namespace IndividualModel
         // Update is called once per frame
         void Update()
         {
-
+            
         }
     }
 }

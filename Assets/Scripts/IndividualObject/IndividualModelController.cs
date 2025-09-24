@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 
+// Control model loading, model init (timing, experiment selection)
 namespace IndividualModel
 {
     public class IndividualModelController : MonoBehaviour
