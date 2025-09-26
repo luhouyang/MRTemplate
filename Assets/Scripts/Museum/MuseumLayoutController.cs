@@ -12,7 +12,7 @@ using UnityEditor;
 using UnityEngine;
 using static Microsoft.MixedReality.Toolkit.MRTemplate.DataModule;
 
-// Contains Experiment flow, DataModule, SetRecording
+// Contains Experiment flow, SetRecording
 namespace MuseumModel
 {
     public class MuseumLayoutController : MonoBehaviour
@@ -60,7 +60,6 @@ namespace MuseumModel
                     MuseumModelRecorder modelRecorder = models[j].GetComponent<MuseumModelRecorder>();
                     if (modelRecorder != null)
                     {
-                        //modelRecorder.InitializeState(sessionPath);
                         modelRecorder.viewBlocker.SetActive(true);
                         models[j].GetComponent<EyeTrackingTarget>().enabled = false;
                         models[j].SetActive(false);
@@ -136,7 +135,6 @@ namespace MuseumModel
         {
             if (currentLayout.GetComponent<MuseumModelController>().isRecording)
             {
-                //currentLayout.GetComponent<MuseumModelController>().SaveFiles();
                 currentLayout.GetComponent<MuseumModelController>().SetIsRecording(false);
             }
         }

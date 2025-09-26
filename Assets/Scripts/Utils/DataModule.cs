@@ -9,6 +9,7 @@ using Microsoft.MixedReality.Toolkit.Input;
 using Microsoft.MixedReality.Toolkit.Utilities;
 using TMPro;
 
+// TODO: Add continuous data saving, to reduce lag at the end of sessions
 namespace Microsoft.MixedReality.Toolkit.MRTemplate
 {
     public class DataModule

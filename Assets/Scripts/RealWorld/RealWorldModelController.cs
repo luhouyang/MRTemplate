@@ -7,6 +7,9 @@ using Microsoft.MixedReality.Toolkit.Input;
 using Microsoft.MixedReality.Toolkit.Utilities;
 using Microsoft.MixedReality.Toolkit;
 
+// In early stages of development, many things will change
+// TODO: Attach Live Heatmap to spatial mesh
+// TODO: Learn more about spatial mesh for higher resolution and more persistent gaze mapping
 namespace RealWorldModel
 {
     public class RealWorldModelController : MonoBehaviour

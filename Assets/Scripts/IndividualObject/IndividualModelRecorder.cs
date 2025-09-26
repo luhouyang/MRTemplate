@@ -132,7 +132,7 @@ namespace IndividualModel
 
         public void SetIsRecording(bool val)
         {
-            /* Reset & clear variables (isRecording, timer, startingTime, savedGaze) */
+            /* Reset & clear variables (isRecording, timer, savedGaze) */
             isRecording = val;
             timer = recordGazeDuration + recordVoiceDuration; // reset timer
             savedGaze = !val; // reset recording state

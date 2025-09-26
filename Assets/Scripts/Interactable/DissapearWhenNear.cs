@@ -38,8 +38,6 @@ public class DissapearWhenNear : MonoBehaviour
         objectMaterial = objectRenderer.material;
         initialAlpha = objectMaterial.color.a;
 
-        // NOTE: With MRTK and HoloLens, we use CameraCache to get the main camera.
-        // The CameraCache ensures we have a reference to the active, ready camera.
         if (CameraCache.Main == null)
         {
             Debug.LogError("CameraCache.Main is null. Make sure MRTK is properly configured and a camera is available.");
@@ -56,7 +54,6 @@ public class DissapearWhenNear : MonoBehaviour
             Vector3 headPosition = CameraCache.Main.transform.position;
             Vector3 headForward = CameraCache.Main.transform.forward;
 
-            // Log the head position and forward vector for debugging purposes
             //Debug.Log($"Head Position: {headPosition}, Head Forward: {headForward}");
 
             // Calculate the distance between the camera's position and this GameObject.
@@ -75,12 +72,10 @@ public class DissapearWhenNear : MonoBehaviour
             objectMaterial.color = new Color(currentColor.r, currentColor.g, currentColor.b, newAlpha);
 
             // NOTE: For this to work, you MUST set the Rendering Mode of your material to 'Transparent' or 'Fade'
-            // in the Unity Inspector. You can find this setting under the material's properties.
         }
     }
 
     // This function can be used to set the material's rendering mode to Transparent at runtime.
-    // It's helpful if you want to switch it from Opaque.
     private void SetMaterialRenderingModeToTransparent(Material material)
     {
         material.SetOverrideTag("RenderType", "Transparent");
