@@ -32,4 +32,9 @@ public class GroupItems : MonoBehaviour
     {
         return models;
     }
+
+    public GameObject GetLayout()
+    {
+        return museumLayout;
+    }
 }

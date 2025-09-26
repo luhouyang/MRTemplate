@@ -61,31 +61,18 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         }
 
         #region KEYPAD MARKER RELATED
-        public void SpawnMarkerAtPosition(int index, Vector3 worldPosition, Vector3 surfaceNormal, GameObject[] markerPrefabs)
+        public void SpawnMarkerAtPosition(GameObject marker, Vector3 worldPosition, Vector3 surfaceNormal)
         {
-            if (markerPrefabs == null || markerPrefabs.Length == 0)
-            {
-                Debug.LogError("Marker Prefabs array is not assigned or is empty. Cannot spawn marker.");
-                return;
-            }
-
-            if (index >= markerPrefabs.Length)
-            {
-                Debug.LogError($"Invalid marker key: {index}.");
-                return;
-            }
-
             // The normal vector points directly outwards from the surface.
             // Quaternion.LookRotation creates a rotation where the Z-axis of the marker points along the normal.
             Quaternion spawnRotation = Quaternion.LookRotation(surfaceNormal);
 
-            GameObject prefabToSpawn = markerPrefabs[index];
-            if (prefabToSpawn != null)
+            if (marker != null)
             {
                 // Instantiate the chosen prefab using the provided position and calculated rotation.
                 // If markerContainer is assigned, parent the new marker to it for a clean hierarchy.
                 // Instantiate the marker and store its reference in a variable.
-                GameObject newMarker = Instantiate(prefabToSpawn, worldPosition, spawnRotation, markerContainer);
+                GameObject newMarker = Instantiate(marker, worldPosition, spawnRotation, markerContainer);
 
                 // Add the newly created marker to our list for tracking.
                 spawnedMarkers.Add(newMarker);
@@ -93,7 +80,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             }
             else
             {
-                Debug.LogError($"Prefab at index {index} in markerPrefabs is null.");
+                Debug.LogError($"Marker is null.");
             }
         }
         #endregion

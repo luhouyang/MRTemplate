@@ -29,19 +29,24 @@ public class ButtonUI : MonoBehaviour
         }
     }
 
-    // Update is called once per frame
-    void Update()
-    {
-        
-    }
-
     public void setHasState(bool val)
     {
         hasState = val;
     }
 
-    public void toggleIsPressed()
+    public void setIsPressed(bool val)
     {
-        isPressed = !isPressed;
+        isPressed = val;
+
+        if (isPressed)
+        {
+            onButton.SetActive(true);
+            offButton.SetActive(false);
+        }
+        else
+        {
+            onButton.SetActive(false);
+            offButton.SetActive(true);
+        }
     }
 }

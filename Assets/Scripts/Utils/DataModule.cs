@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Text;
 using System.Collections;
@@ -11,38 +11,38 @@ using TMPro;
 
 namespace Microsoft.MixedReality.Toolkit.MRTemplate
 {
-    [System.Serializable]
-    public class GazeData
+    public class DataModule
     {
-        public double timestamp;
-        public Vector3 headPosition;
-        public Vector3 headForward;
-        public Vector3 eyeOrigin;
-        public Vector3 eyeDirection;
-        public Vector3 hitPosition;
-        public string targetName;
-        public Vector3 localHitPosition;
-    }
+        [System.Serializable]
+        public class GazeData
+        {
+            public double timestamp;
+            public Vector3 headPosition;
+            public Vector3 headForward;
+            public Vector3 eyeOrigin;
+            public Vector3 eyeDirection;
+            public Vector3 hitPosition;
+            public string targetName;
+            public Vector3 localHitPosition;
+        }
 
-    [System.Serializable]
-    public class SessionData
-    {
-        public string objectName;
-        public List<GazeData> gazeData = new List<GazeData>();
-        public List<QuestionnaireAnswer> questionnaireAnswers = new List<QuestionnaireAnswer>();
-    }
+        [System.Serializable]
+        public class SessionData
+        {
+            public string objectName;
+            public List<GazeData> gazeData = new List<GazeData>();
+            public List<QuestionnaireAnswer> questionnaireAnswers = new List<QuestionnaireAnswer>();
+        }
 
-    [System.Serializable]
-    public class QuestionnaireAnswer
-    {
-        public double timestamp;
-        public string answer;
-        public Vector3 estimatedGamePosition;
-        public string targetName;
-    }
+        [System.Serializable]
+        public class QuestionnaireAnswer
+        {
+            public double timestamp;
+            public string answer;
+            public Vector3 estimatedGamePosition;
+            public string targetName;
+        }
 
-    public class DataModule : MonoBehaviour
-    {
         private string saveDir;
         private double startingTime;
         private SessionData currentSession = new SessionData();
@@ -62,24 +62,26 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         // Heatmap / Model
         private MeshFilter meshFilter;
 
-        // Start is called before the first frame update
-        void Start()
+        public DataModule(string saveDir, double startingTime, GameObject modelGameObject, MeshFilter meshFilter)
         {
+            this.saveDir = saveDir;
+            this.startingTime = startingTime;
+            this.modelGameObject = modelGameObject;
+            this.meshFilter = meshFilter;
 
-        }
+            // Get Renderer & localbound
+            targetRenderer = modelGameObject.GetComponent<Renderer>();
+            localBounds = targetRenderer.localBounds;
 
-        // Update is called once per frame
-        void Update()
-        {
-
+            pointcloudSB.AppendLine("x,y,z,timestamp,headPosition,headForward,eyeOrigin,eyeDirection");
         }
 
         // Record Eye Gaze Data
-        private void RecordGazeData(GameObject target)
+        public Vector3[] RecordGazeData(GameObject target)
         {
             /* GET EYE GAZE PROVIDER */
             var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
-            if (eyeProvider == null) return;
+            if (eyeProvider == null) return new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero };
 
             /* CREATE NEW GAZE DATA */
             var gaze = new GazeData
@@ -100,8 +102,8 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
                 gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
                 Vector3 pos = gaze.localHitPosition;
 
-                /* CHECK IF GAZE HIT IS ON SELECTED MODEL */
-                if (localBounds.Contains(pos) && gaze.targetName == target.name && gaze.targetName != "null")
+                /* CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL */
+                if (localBounds.Contains(pos))
                 {
                     /* REVERT TRANSFORMS WHEN IMPORTING MODEL */
                     pos = UnapplyUnityTransforms(pos, target.transform.eulerAngles);
@@ -114,6 +116,8 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             {
                 gaze.localHitPosition = Vector3.zero;
             }
+
+            return new Vector3[] { gaze.localHitPosition, gaze.hitPosition, gaze.eyeDirection };
         }
 
         #region AUDIO
@@ -160,7 +164,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             return wavBytes;
         }
 
-        private void SaveAudioData(AudioClip recordedAudio, int chunkIndex)
+        public void SaveAudioData(AudioClip recordedAudio, int chunkIndex)
         {
             if (recordedAudio == null)
             {
@@ -176,7 +180,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             chunkIndex++;
         }
 
-        private void SaveFileList()
+        public void SaveFileList()
         {
             // IN CMD run: ffmpeg -f concat -safe 0 -i filelist.txt -c copy output.wav
             StringBuilder sb = new StringBuilder();
@@ -207,7 +211,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         }
 
         #region EXPORT DATA
-        public void ExportPointCloud(GameObject target)
+        public void ExportPointCloud()
         {
             File.WriteAllText(Path.Combine(saveDir, "pointcloud.csv"), pointcloudSB.ToString());
         }
@@ -224,7 +228,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             StringBuilder sb = new StringBuilder();
             sb.Append("# Exported Gaze Object\n");
 
-            Mesh tempMesh = Instantiate(mesh);
+            Mesh tempMesh = MonoBehaviour.Instantiate(mesh);
 
             Vector3[] transVertices = new Vector3[tempMesh.vertexCount];
             for (int i = 0; i < tempMesh.vertices.Length; i++)
@@ -273,7 +277,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         #endregion
 
         #region QNA
-        private void OnQuestionnaireAnswered(string selectedAnswer, Vector3 localHitPosition)
+        public void OnQuestionnaireAnswered(string selectedAnswer, Vector3 localHitPosition)
         {
             currentSession.questionnaireAnswers.Add(new QuestionnaireAnswer
             {
@@ -283,7 +287,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             });
         }
 
-        private void SaveQuestionnaireAnswers()
+        public void ExportQuestionnaireAnswers()
         {
             if (currentSession.questionnaireAnswers.Count == 0) return;
 
