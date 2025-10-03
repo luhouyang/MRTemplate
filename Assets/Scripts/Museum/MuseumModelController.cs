@@ -24,7 +24,7 @@ namespace MuseumModel
         private int experimentNumber = 1;
 
         // Experiment duration control
-        private float recordGazeDuration = 150.0f;
+        private float recordGazeDuration = 180.0f;
 
         private List<GameObject> models;
 
@@ -86,7 +86,7 @@ namespace MuseumModel
                 MuseumModelRecorder modelRecorder = models[j].GetComponent<MuseumModelRecorder>();
                 if (modelRecorder != null)
                 {
-                    Debug.Log(modelRecorder.name);
+                    //Debug.Log(modelRecorder.name);
                     modelRecorder.SaveData();
                 }
             }
@@ -94,7 +94,8 @@ namespace MuseumModel
 
         public void ResetAll()
         {
-
+            // Resetting done from model level script, more can be added if the layout itself has to be resetted
+            // i.e. if moving display elements are added
         }
 
         #region EXPERIMENT FLOWS

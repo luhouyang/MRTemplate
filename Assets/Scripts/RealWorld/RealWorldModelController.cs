@@ -1,14 +1,14 @@
-using System.Text;
-using System.IO;
+using Microsoft.MixedReality.Toolkit;
+using Microsoft.MixedReality.Toolkit.Input;
+using Microsoft.MixedReality.Toolkit.MRTemplate;
+using Microsoft.MixedReality.Toolkit.Utilities;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using UnityEngine;
-using Microsoft.MixedReality.Toolkit.Input;
-using Microsoft.MixedReality.Toolkit.Utilities;
-using Microsoft.MixedReality.Toolkit;
 
 // In early stages of development, many things will change
-// TODO: Attach Live Heatmap to spatial mesh
 // TODO: Learn more about spatial mesh for higher resolution and more persistent gaze mapping
 namespace RealWorldModel
 {
@@ -16,7 +16,7 @@ namespace RealWorldModel
     {
         [Tooltip("The maximum distance the gaze ray will extend.")]
         [SerializeField]
-        private float maxGazeDistance = 20.0f;
+        private float maxGazeDistance = 50.0f;
 
         [Tooltip("LayerMask to filter what the gaze ray can hit. Include SpatialAwareness if you want to log hits on real-world meshes.")]
         [SerializeField]
@@ -24,11 +24,27 @@ namespace RealWorldModel
 
         [Tooltip("Interval (seconds) between logging gaze data to reduce file size.")]
         [SerializeField]
-        private float loggingInterval = 0.1f; // Log ~10 times per second
+        private float loggingInterval = 0.003f; // Log ~30 times per second
 
         private IMixedRealityEyeGazeProvider eyeGazeProvider;
         private float lastLogTime;
         private string logFilePath;
+
+        [Header("Heatmap Settings")]
+        public Texture2D HeatmapLookUpTable;
+
+        [SerializeField]
+        private float drawBrushSize = 1500.0f; // spread of the heatmap visualization
+
+        [SerializeField]
+        private float drawIntensity = 30.0f; // amplitude / min & max of the color lookup table
+
+        [SerializeField]
+        private float minThreshDeltaHeatMap = 0.001f; // Mostly for performance to reduce spreading heatmap for small values.
+
+        public Material HeatmapOverlayMaterialTemplate; // Heatmap initial material
+
+        private DrawOn3DTexture liveHeatmap;
 
         [System.Serializable]
         public class GazeRecord
@@ -47,6 +63,9 @@ namespace RealWorldModel
         // Start is called before the first frame update
         void Start()
         {
+            liveHeatmap = gameObject.AddComponent<DrawOn3DTexture>();
+            liveHeatmap.SetVariables(HeatmapLookUpTable, HeatmapOverlayMaterialTemplate, drawBrushSize, drawIntensity, minThreshDeltaHeatMap);
+
             if (CoreServices.InputSystem != null)
             {
                 eyeGazeProvider = CoreServices.InputSystem.EyeGazeProvider;
@@ -118,6 +137,8 @@ namespace RealWorldModel
                     {
                         record.hitObjectName = hit.collider.gameObject.name;
                     }
+
+                    liveHeatmap.DrawAtThisHitPos(hit.point);
                 }
                 else
                 {

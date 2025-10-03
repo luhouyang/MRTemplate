@@ -66,6 +66,7 @@ namespace IndividualModel
         {
             sessionPath = DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss");
 
+            // Set all models to default (non-active) state to reduce program overhead
             for (int i = 0; i < groups.Count; i++)
             {
                 models = groups[i].GetComponent<GroupItems>().GetModels();
@@ -83,12 +84,14 @@ namespace IndividualModel
                 }
             }
 
+            // Set live heatmap initial state (can be toggled from button on ControlPanel)
             heatmapState = enableLiveHeatmapOnStart;
             SetAllLiveHeatmap(enableLiveHeatmapOnStart);
 
             promptObject.SetActive(false);
             QNAPrompt.SetActive(true);
 
+            // Load the first group of models
             group = groups[0];
             models = group.GetComponent<GroupItems>().GetModels();
             groupPromptObject.GetComponent<TextMeshPro>().SetText(group.name);
@@ -106,7 +109,7 @@ namespace IndividualModel
         // Update is called once per frame
         void Update()
         {
-            // Auto load next
+            // Auto load next model
             if (recorded)
             {
                 LoadNext();
@@ -163,6 +166,8 @@ namespace IndividualModel
             }
         }
 
+        // Set all models to have same experiment (individual models will call different update methods)
+        // Could be updated to allow for individual settings
         public void SetExperimentNumber(int experimentNumber)
         {
             for (int i = 0; i < groups.Count; i++)
@@ -196,9 +201,10 @@ namespace IndividualModel
             if (currentModel.GetComponent<IndividualModelRecorder>().isRecording)
             {
                 currentModel.GetComponent<IndividualModelRecorder>().SetIsRecording(false);
-                currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportPointCloud();
+                // Saving logic moved to Recorder (uncomment to allow for partial saving)
+                //currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportPointCloud();
                 //currentModel.GetComponent<IndividualModelRecorder>().dataModule.Export3DModel(currentModel);
-                currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportQuestionnaireAnswers();
+                //currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportQuestionnaireAnswers();
                 currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
             }
         }

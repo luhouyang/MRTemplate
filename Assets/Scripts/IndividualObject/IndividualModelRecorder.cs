@@ -99,7 +99,7 @@ namespace IndividualModel
             promptInitialPosition = promptObject.transform.localPosition;
             promptObject.GetComponent<TextMeshPro>().SetText(enterText);
 
-            // Audio prompt
+            // Audio prompt following user setup
             if (objectWithCollider == null)
             {
                 Collider coll = GetComponent<Collider>();
@@ -127,6 +127,10 @@ namespace IndividualModel
             if (experimentNumber == 1)
             {
                 EyeGazeAndQNAThenVoice();
+            } 
+            else if (experimentNumber == 2)
+            {
+                EyeGazeAndQNAOnly();
             }
         }
 
@@ -257,6 +261,47 @@ namespace IndividualModel
                 dataModule.Export3DModel(gameObject);
                 StopAudioRecording();
                 dataModule.SaveFileList();
+                SetIsRecording(false);
+
+                IndividualModelController.ToggleRecorded();
+            }
+        }
+
+        private void EyeGazeAndQNAOnly()
+        {
+            /* CHECK IF RECORDING STARTED */
+            if (!isRecording || IndividualModelController.currentModel == null) return;
+
+            /* GET GAZED OBJECT */
+            var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+            var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+            /* RECORD GAZE DATA */
+            if (timer > 0)
+            {
+                timer -= Time.deltaTime;
+
+                // Pass the gazed voxel ID to RecordGazeData
+                Vector3[] gaze = dataModule.RecordGazeData(gazedObject);
+                if (gaze[0] != Vector3.zero)
+                {
+                    lastLocalHitPosition = gaze[0];
+                    globalHitPosition = gaze[1];
+                    hitNormal = gaze[2];
+                }
+
+                promptObject.GetComponent<TextMeshPro>().SetText($"VIEWING TIME: {(timer - recordVoiceDuration):F1}");
+
+                CheckKeyboardInput();
+            }
+            else
+            {
+                promptObject.GetComponent<TextMeshPro>().SetText("");
+                IndividualModelController.StopSineWave();
+
+                dataModule.ExportPointCloud();
+                dataModule.ExportQuestionnaireAnswers();
+                dataModule.Export3DModel(gameObject);
                 SetIsRecording(false);
 
                 IndividualModelController.ToggleRecorded();

@@ -50,6 +50,7 @@ namespace MuseumModel
         {
             sessionPath = DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss");
 
+            // Set all models and layout to default (non-active) state to reduce program overhead
             for (int i = 0; i < layoutButtons.Count; i++)
             {
                 models = layoutButtons[i].GetComponent<GroupItems>().GetModels();
@@ -68,9 +69,11 @@ namespace MuseumModel
                 layout.SetActive(false);
             }
 
+            // Set live heatmap state (can be toggled from ControlPanel)
             heatmapState = enableLiveHeatmapOnStart;
             SetAllLiveHeatmap(enableLiveHeatmapOnStart);
 
+            // Select the first layout
             layout = layoutButtons[0].GetComponent<GroupItems>().GetLayout();
             models = layoutButtons[0].GetComponent<GroupItems>().GetModels();
             layoutPromptObject.GetComponent<TextMeshPro>().SetText(layoutButtons[0].name);

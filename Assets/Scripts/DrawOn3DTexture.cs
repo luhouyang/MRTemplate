@@ -60,6 +60,16 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             InitializeDrawTexture();
         }
 
+        public void SetVariables(Texture2D lookUpTable, Material heatmapOverlay, float drawBrushSize = 1500.0f, float drawIntensity=30.0f, float minThreshDeltaHeatMap=0.001f)
+        {
+            HeatmapLookUpTable = lookUpTable;
+            HeatmapOverlayMaterialTemplate = heatmapOverlay;
+
+            this.drawBrushSize = drawBrushSize;
+            this.drawIntensity = drawIntensity;
+            this.minThreshDeltaHeatMap = minThreshDeltaHeatMap;
+        }
+
         #region KEYPAD MARKER RELATED
         public void SpawnMarkerAtPosition(GameObject marker, Vector3 worldPosition, Vector3 surfaceNormal)
         {
