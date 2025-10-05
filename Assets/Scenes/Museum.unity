@@ -2401,7 +2401,7 @@ MeshRenderer:
   m_RenderingLayerMask: 1
   m_RendererPriority: 0
   m_Materials:
-  - {fileID: 2100000, guid: 5ed5cc8896d29d24892f3f87b786c62b, type: 2}
+  - {fileID: 2100000, guid: 5f42308bc4b960e49915dfa315f97344, type: 2}
   m_StaticBatchInfo:
     firstSubMesh: 0
     subMeshCount: 0
@@ -3401,13 +3401,14 @@ PrefabInstance:
       propertyPath: m_Name
       value: ButtonPanel
       objectReference: {fileID: 0}
+    - target: {fileID: 9043981234479063590, guid: a8cd56c40154f1f4bb01c5de45a2f3b6, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
-    m_AddedComponents:
-    - targetCorrespondingSourceObject: {fileID: 7341000621559091050, guid: a8cd56c40154f1f4bb01c5de45a2f3b6, type: 3}
-      insertIndex: -1
-      addedObject: {fileID: 0}
+    m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: a8cd56c40154f1f4bb01c5de45a2f3b6, type: 3}
 --- !u!1 &1105161260 stripped
 GameObject:

@@ -77,7 +77,7 @@ namespace MuseumModel
             {
                 models[i].transform.parent.gameObject.SetActive(true);
             }
-            layout.SetActive(true);
+            //layout.SetActive(true);
 
             LoadLayout();
         }
