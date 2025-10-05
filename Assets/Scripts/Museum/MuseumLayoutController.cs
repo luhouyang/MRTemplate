@@ -23,9 +23,6 @@ namespace MuseumModel
         [SerializeField] private GameObject startButton;
         [SerializeField] private GameObject heatmapButton;
 
-        [Header("UI Settings")]
-        [SerializeField] private GameObject layoutPromptObject;
-
         [Header("Heatmap Settings")]
         [SerializeField] private bool enableLiveHeatmapOnStart = false;
 
@@ -76,7 +73,6 @@ namespace MuseumModel
             // Select the first layout
             layout = layoutButtons[0].GetComponent<GroupItems>().GetLayout();
             models = layoutButtons[0].GetComponent<GroupItems>().GetModels();
-            layoutPromptObject.GetComponent<TextMeshPro>().SetText(layoutButtons[0].name);
             for (int i = 0; i < models.Count; i++)
             {
                 models[i].transform.parent.gameObject.SetActive(true);
@@ -92,7 +88,6 @@ namespace MuseumModel
             // Show group number only before first layout viewing is started
             if (!currentLayout.GetComponent<MuseumModelController>().isRecording)
             {
-                layoutPromptObject.SetActive(true);
                 if ((Input.GetKey(KeyCode.Alpha7) || Input.GetKey(KeyCode.Keypad7)) && (Input.GetKeyDown(KeyCode.Alpha9) || Input.GetKeyDown(KeyCode.Keypad9)))
                 {
                     currentLayoutIndex++;
@@ -128,7 +123,6 @@ namespace MuseumModel
         {
             if (!currentLayout.GetComponent<MuseumModelController>().isRecording && !recorded)
             {
-                layoutPromptObject.SetActive(false);
                 startButton.SetActive(false);
                 currentLayout.GetComponent<MuseumModelController>().SetIsRecording(true);
             }
@@ -193,9 +187,6 @@ namespace MuseumModel
                 MuseumModelRecorder recorder = models[j].GetComponent<MuseumModelRecorder>();
                 recorder.ResetAll();
             }
-
-            layoutPromptObject.SetActive(true);
-            layoutPromptObject.GetComponent<TextMeshPro>().SetText(layout.name);
 
             currentLayoutIndex = layoutNumber;
 

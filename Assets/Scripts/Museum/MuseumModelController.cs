@@ -18,10 +18,14 @@ namespace MuseumModel
 {
     public class MuseumModelController : MonoBehaviour
     {
+        [Header("Area Based Control")]
+        [SerializeField] private GameObject startArea;
+        [SerializeField] private GameObject endArea;
+
         // Control flow flags
         private float timer = 0;
         public bool isRecording = false;
-        private int experimentNumber = 1;
+        private int experimentNumber = 2;
 
         // Experiment duration control
         private float recordGazeDuration = 180.0f;
@@ -31,15 +35,57 @@ namespace MuseumModel
         // Start is called before the first frame update
         void Start()
         {
+            if (startArea != null)
+            {
+                startArea.SetActive(false);
+            }
 
+            if (endArea != null)
+            {
+                endArea.SetActive(false);
+            }
         }
 
         // Update is called once per frame
         void Update()
         {
+            if (MuseumLayoutController.recorded) return;
+
             if (experimentNumber == 1)
             {
                 EyeGazeFlow();
+            }
+            else if (experimentNumber == 2)
+            {
+                if (!isRecording)
+                {
+                    if (!startArea.activeInHierarchy)
+                    {
+                        startArea.SetActive(true);
+                    }
+
+                    if (endArea.activeInHierarchy)
+                    {
+                        endArea.SetActive(false);
+                    }
+
+                    if (CameraCache.Main != null)
+                    {
+                        Vector3 headPosition = CameraCache.Main.transform.position;
+
+                        // Use the new function to check if the camera is over the platform (in XZ).
+                        bool isOverPlatform = startArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+
+                        if (!isOverPlatform)
+                        {
+                            SetIsRecording(true);
+                        }
+                    }
+                }
+                else
+                {
+                    StartEndAreaFlow();
+                }
             }
         }
 
@@ -61,6 +107,12 @@ namespace MuseumModel
                     model.GetComponent<EyeTrackingTarget>().enabled = true;
                     model.SetActive(true);
                 }
+
+                if (experimentNumber == 2)
+                {
+                    startArea.SetActive(false);
+                    endArea.SetActive(true);
+                }
             }
             else
             {
@@ -70,6 +122,12 @@ namespace MuseumModel
                     model.GetComponent<MuseumModelRecorder>().viewBlocker.SetActive(true);
                     model.GetComponent<EyeTrackingTarget>().enabled = false;
                     model.SetActive(false);
+                }
+
+                if (experimentNumber == 2)
+                {
+                    startArea.SetActive(true);
+                    endArea.SetActive(false);
                 }
             }
         }
@@ -110,6 +168,43 @@ namespace MuseumModel
 
             /* RECORD GAZE DATA */
             if (timer > 0)
+            {
+                timer -= Time.deltaTime;
+
+                if (gazedObject != null)
+                {
+                    foreach (GameObject model in models)
+                    {
+                        if (gazedObject.name == model.name)
+                        {
+                            model.GetComponent<MuseumModelRecorder>().dataModule.RecordGazeData(model);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Save files
+                SetIsRecording(false);
+
+                MuseumLayoutController.ToggleRecorded();
+            }
+        }
+
+        private void StartEndAreaFlow()
+        {
+            /* CHECK IF RECORDING STARTED */
+            if (!isRecording || MuseumLayoutController.currentLayout == null || CameraCache.Main == null) return;
+
+            /* GET GAZED OBJECT */
+            var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+            var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+            Vector3 headPosition = CameraCache.Main.transform.position;
+            bool isOverPlatform = endArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+
+            /* RECORD GAZE DATA */
+            if (!isOverPlatform)
             {
                 timer -= Time.deltaTime;
 
