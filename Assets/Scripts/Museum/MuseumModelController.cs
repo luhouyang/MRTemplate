@@ -57,35 +57,7 @@ namespace MuseumModel
             }
             else if (experimentNumber == 2)
             {
-                if (!isRecording)
-                {
-                    if (!startArea.activeInHierarchy)
-                    {
-                        startArea.SetActive(true);
-                    }
-
-                    if (endArea.activeInHierarchy)
-                    {
-                        endArea.SetActive(false);
-                    }
-
-                    if (CameraCache.Main != null)
-                    {
-                        Vector3 headPosition = CameraCache.Main.transform.position;
-
-                        // Use the new function to check if the camera is over the platform (in XZ).
-                        bool isOverPlatform = startArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
-
-                        if (!isOverPlatform)
-                        {
-                            SetIsRecording(true);
-                        }
-                    }
-                }
-                else
-                {
-                    StartEndAreaFlow();
-                }
+                StartEndAreaFlow();
             }
         }
 
@@ -193,38 +165,65 @@ namespace MuseumModel
 
         private void StartEndAreaFlow()
         {
-            /* CHECK IF RECORDING STARTED */
-            if (!isRecording || MuseumLayoutController.currentLayout == null || CameraCache.Main == null) return;
-
-            /* GET GAZED OBJECT */
-            var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
-            var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
-
-            Vector3 headPosition = CameraCache.Main.transform.position;
-            bool isOverPlatform = endArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
-
-            /* RECORD GAZE DATA */
-            if (!isOverPlatform)
+            if (!isRecording)
             {
-                timer -= Time.deltaTime;
-
-                if (gazedObject != null)
+                if (!startArea.activeInHierarchy)
                 {
-                    foreach (GameObject model in models)
+                    startArea.SetActive(true);
+                }
+
+                if (endArea.activeInHierarchy)
+                {
+                    endArea.SetActive(false);
+                }
+
+                if (CameraCache.Main != null)
+                {
+                    Vector3 headPosition = CameraCache.Main.transform.position;
+
+                    // Use the new function to check if the camera is over the platform (in XZ).
+                    bool isOverPlatform = startArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+
+                    if (!isOverPlatform)
                     {
-                        if (gazedObject.name == model.name)
-                        {
-                            model.GetComponent<MuseumModelRecorder>().dataModule.RecordGazeData(model);
-                        }
+                        SetIsRecording(true);
                     }
                 }
             }
             else
             {
-                // Save files
-                SetIsRecording(false);
+                if (MuseumLayoutController.currentLayout == null || CameraCache.Main == null) return;
 
-                MuseumLayoutController.ToggleRecorded();
+                /* GET GAZED OBJECT */
+                var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+                var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+                Vector3 headPosition = CameraCache.Main.transform.position;
+                bool isOverPlatform = endArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+
+                /* RECORD GAZE DATA */
+                if (!isOverPlatform)
+                {
+                    timer -= Time.deltaTime;
+
+                    if (gazedObject != null)
+                    {
+                        foreach (GameObject model in models)
+                        {
+                            if (gazedObject.name == model.name)
+                            {
+                                model.GetComponent<MuseumModelRecorder>().dataModule.RecordGazeData(model);
+                            }
+                        }
+                    }
+                }
+                else
+                {
+                    // Save files
+                    SetIsRecording(false);
+
+                    MuseumLayoutController.ToggleRecorded();
+                }
             }
         }
         #endregion

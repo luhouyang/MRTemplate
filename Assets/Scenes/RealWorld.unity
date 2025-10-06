@@ -497,7 +497,12 @@ MonoBehaviour:
   raycastLayerMask:
     serializedVersion: 2
     m_Bits: 51
-  loggingInterval: 0.1
+  loggingInterval: 0.003
+  HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
+  drawBrushSize: 1500
+  drawIntensity: 30
+  minThreshDeltaHeatMap: 0.001
+  HeatmapOverlayMaterialTemplate: {fileID: 2100000, guid: d62248a667903c8468a7d264bc0cd56b, type: 2}
 --- !u!1 &1858295014
 GameObject:
   m_ObjectHideFlags: 0
