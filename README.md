@@ -1,5 +1,3 @@
 # Mixed Reality Template Project
 
-For Eye Tracking with HoloLens 2 on Unity.
-
-https://docs.google.com/document/d/1hs8zHF2yzrMDRXTj319fBOcU91ZXBHdh00ar9nUG-KI/edit?usp=sharing
+For Eye Tracking with HoloLens 2 on Unity. All installation, use and customizations can be found in the [DOCUMENTATION](https://docs.google.com/document/d/1CUe7mkQSQvziA3SRUQionMJBEsnUvCyB_85sT8fFSs0/edit?usp=sharing)
