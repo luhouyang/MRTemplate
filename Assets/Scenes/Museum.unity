@@ -148,19 +148,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: -0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -168,7 +168,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: -90
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -263,8 +263,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1000
-  drawIntensity: 50
+  drawBrushSize: 2000
+  drawIntensity: 30
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1
   UseLiveInputStream: 1
@@ -1468,19 +1468,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: -0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -1488,7 +1488,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: -90
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -4852,8 +4852,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1000
-  drawIntensity: 50
+  drawBrushSize: 2000
+  drawIntensity: 30
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1
   UseLiveInputStream: 1
@@ -5915,19 +5915,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.w
-      value: 1
+      value: 0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.x
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.y
-      value: -0
+      value: -0.7071068
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalRotation.z
-      value: -0
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.x
@@ -5935,7 +5935,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.y
-      value: 0
+      value: -90
       objectReference: {fileID: 0}
     - target: {fileID: 6627850204167133710, guid: 9b2a1ac707199464395384a608054649, type: 3}
       propertyPath: m_LocalEulerAnglesHint.z
@@ -6177,8 +6177,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1000
-  drawIntensity: 50
+  drawBrushSize: 2000
+  drawIntensity: 30
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1
   UseLiveInputStream: 1
@@ -7549,8 +7549,8 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1000
-  drawIntensity: 50
+  drawBrushSize: 2000
+  drawIntensity: 30
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1
   UseLiveInputStream: 1
