@@ -84,41 +84,43 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
             if (eyeProvider == null) return new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero };
 
-            /* CREATE NEW GAZE DATA */
-            var gaze = new GazeData
-            {
-                timestamp = Time.unscaledTimeAsDouble - startingTime,
-                headPosition = CameraCache.Main.transform.position,
-                headForward = CameraCache.Main.transform.forward,
-                eyeOrigin = eyeProvider.GazeOrigin,
-                eyeDirection = eyeProvider.GazeDirection,
-                hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
-                targetName = target != null ? target.name : "null",
-            };
+            ///* CREATE NEW GAZE DATA */
+            //var gaze = new GazeData
+            //{
+            //    timestamp = Time.unscaledTimeAsDouble - startingTime,
+            //    headPosition = CameraCache.Main.transform.position,
+            //    headForward = CameraCache.Main.transform.forward,
+            //    eyeOrigin = eyeProvider.GazeOrigin,
+            //    eyeDirection = eyeProvider.GazeDirection,
+            //    hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
+            //    targetName = target != null ? target.name : "null",
+            //};
+
+            Vector3 hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero;
+            Vector3 localHitPosition;
 
             /* CHECK IF GAZE HIT ON SELECTED MODEL */
             if (target != null && target.name == modelGameObject.name)
             {
                 /* CONVERT GAZE HIT FROM WORLD COORDINATE TO LOCAL COORDINATE */
-                gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
-                Vector3 pos = gaze.localHitPosition;
+                localHitPosition = target.transform.InverseTransformPoint(hitPosition);
 
                 /* CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL */
-                if (localBounds.Contains(pos))
+                if (localBounds.Contains(localHitPosition))
                 {
                     /* REVERT TRANSFORMS WHEN IMPORTING MODEL */
-                    pos = UnapplyUnityTransforms(pos, target.transform.eulerAngles);
+                    localHitPosition = UnapplyUnityTransforms(localHitPosition, target.transform.eulerAngles);
 
                     /* ADD GAZE DATA */
-                    pointcloudSB.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6},{gaze.timestamp:F6},{gaze.headPosition:F6},{gaze.headForward:F6},{gaze.eyeOrigin:F6},{gaze.eyeDirection:F6}");
+                    pointcloudSB.AppendLine($"{localHitPosition.x:F6},{localHitPosition.y:F6},{localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6},{CameraCache.Main.transform.position:F6},{CameraCache.Main.transform.forward:F6},{eyeProvider.GazeOrigin:F6},{eyeProvider.GazeDirection:F6}");
                 }
             }
             else
             {
-                gaze.localHitPosition = Vector3.zero;
+                localHitPosition = Vector3.zero;
             }
 
-            return new Vector3[] { gaze.localHitPosition, gaze.hitPosition, gaze.eyeDirection };
+            return new Vector3[] { localHitPosition, hitPosition, eyeProvider.GazeDirection };
         }
 
         #region AUDIO

@@ -14,14 +14,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   m_EnvironmentLayer: 30
   m_EnvironmentScanParams:
-    m_MinimumRescanTime: 0.1
+    m_MinimumRescanTime: 0.2
     m_DeltaCameraDistanceToRescan: 0.025
     m_DeltaCameraAngleToRescan: 4
     m_RaysPerCast: 10
     m_MaximumHitDistance: 12
     m_MinimumHitDistance: 0.05
   m_PlaneFindingParams:
-    m_MinimumPlaneUpdateTime: 0.13
+    m_MinimumPlaneUpdateTime: 0.15
     m_MinPointsPerSqMeter: 30
     m_MinSideLength: 0.11
     m_InLayerMergeDistance: 0.2

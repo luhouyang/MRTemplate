@@ -26,6 +26,8 @@ namespace MuseumModel
         private float timer = 0;
         public bool isRecording = false;
         private int experimentNumber = 2;
+        private float platformCheckTimer = 0.05f;
+        private bool isOverPlatform = true;
 
         // Experiment duration control
         private float recordGazeDuration = 180.0f;
@@ -177,17 +179,22 @@ namespace MuseumModel
                     endArea.SetActive(false);
                 }
 
-                if (CameraCache.Main != null)
+                if (CameraCache.Main != null && platformCheckTimer <= 0)
                 {
+                    platformCheckTimer = 0.05f;
+
                     Vector3 headPosition = CameraCache.Main.transform.position;
 
                     // Use the new function to check if the camera is over the platform (in XZ).
-                    bool isOverPlatform = startArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+                    isOverPlatform = startArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
 
                     if (!isOverPlatform)
                     {
                         SetIsRecording(true);
                     }
+                } else
+                {
+                    platformCheckTimer -= Time.deltaTime;
                 }
             }
             else
@@ -198,8 +205,15 @@ namespace MuseumModel
                 var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
                 var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
-                Vector3 headPosition = CameraCache.Main.transform.position;
-                bool isOverPlatform = endArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+                if (platformCheckTimer <= 0)
+                {
+                    platformCheckTimer = 0.05f;
+                    Vector3 headPosition = CameraCache.Main.transform.position;
+                    isOverPlatform = endArea.GetComponentInChildren<ControlPlatform>().IsCameraXZInBounds(headPosition);
+                } else
+                {
+                    platformCheckTimer -= Time.deltaTime;
+                }
 
                 /* RECORD GAZE DATA */
                 if (!isOverPlatform)
