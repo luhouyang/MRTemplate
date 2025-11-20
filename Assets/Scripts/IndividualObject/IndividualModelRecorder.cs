@@ -30,12 +30,19 @@ namespace IndividualModel
         private AudioSource audioSource;
 
         // QNA
+        //private Dictionary<string, string> answerChoices = new Dictionary<string, string> {
+        //    {"4", "面白い・気になる形だ" },
+        //    {"6", "美しい・芸術的だ" },
+        //    {"8", "不思議・意味不明" },
+        //    {"2", "不気味・不安・怖い" },
+        //    {"5", "何も感じない" },
+        //};
         private Dictionary<string, string> answerChoices = new Dictionary<string, string> {
-            {"4", "面白い・気になる形だ" },
-            {"6", "美しい・芸術的だ" },
-            {"8", "不思議・意味不明" },
-            {"2", "不気味・不安・怖い" },
-            {"5", "何も感じない" },
+            {"4", "Interesting and attentional shape" },
+            {"6", "Beautiful and artistic" },
+            {"8", "Strange and incomprehensible" },
+            {"2", "Creepy / unsettling / scary" },
+            {"5", "Feel nothing" },
         };
         private Dictionary<string, int> markerMapping = new Dictionary<string, int> {
             {"4", 0 },
@@ -59,10 +66,10 @@ namespace IndividualModel
         [SerializeField] private GameObject promptObject;
         // Audio recording prompt variables
         private Vector3 promptInitialPosition;
-        private string question = "「この土器/土偶の全体的あるいは部分的な印象をなるべく具体的な言葉を使って45秒以内で話してください」";
-        //private string question = "Please speak your overall or partial impression of this pottery/clay figurine in 45 seconds or less using as specific words as possible.";
-        private string enterText = "「Enter」キーを押してください";
-        //private string enterText = "Press 'ENTER'";
+        //private string question = "「この土器/土偶の全体的あるいは部分的な印象をなるべく具体的な言葉を使って45秒以内で話してください」";
+        private string question = "Please speak your overall or partial impression of this pottery/clay figurine in 45 seconds or less using as specific words as possible.";
+        //private string enterText = "「Enter」キーを押してください";
+        private string enterText = "Press 'ENTER'";
         private float rotationSpeed = 5f;
         private float rotationThresholdDegrees = 1.0f;
         private float followDistance = 1.5f;
