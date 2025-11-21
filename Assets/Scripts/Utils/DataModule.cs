@@ -1,13 +1,14 @@
-﻿using System;
-using System.IO;
-using System.Text;
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
-using Microsoft.MixedReality.Toolkit;
+﻿using Microsoft.MixedReality.Toolkit;
 using Microsoft.MixedReality.Toolkit.Input;
 using Microsoft.MixedReality.Toolkit.Utilities;
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.IO;
+using System.Text;
 using TMPro;
+using UnityEngine;
+using UnityEngine.SocialPlatforms;
 
 // TODO: Add continuous data saving, to reduce lag at the end of sessions
 namespace Microsoft.MixedReality.Toolkit.MRTemplate
@@ -40,8 +41,13 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         {
             public double timestamp;
             public string answer;
-            public Vector3 estimatedGamePosition;
+            public Vector3 estimatedGazePosition;
             public string targetName;
+            public Vector3 globalGazePosition;
+            public Vector3 headPosition;
+            public Vector3 headForward;
+            public Vector3 eyeOrigin;
+            public Vector3 eyeDirection;
         }
 
         private string saveDir;
@@ -74,17 +80,19 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             targetRenderer = modelGameObject.GetComponent<Renderer>();
             localBounds = targetRenderer.localBounds;
 
-            pointcloudSB.AppendLine("x,y,z,timestamp,headPosition,headForward,eyeOrigin,eyeDirection");
+            pointcloudSB.AppendLine("x,y,z,timestamp,globalX,globalY,globalZ," +
+                "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
+                "eyeDirectionX,eyeDirectionY,eyeDirectionZ");
         }
 
         // Record Eye Gaze Data
         public Vector3[] RecordGazeData(GameObject target)
         {
-            /* GET EYE GAZE PROVIDER */
+            // GET EYE GAZE PROVIDER
             var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
             if (eyeProvider == null) return new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero };
 
-            ///* CREATE NEW GAZE DATA */
+            //// CREATE NEW GAZE DATA
             //var gaze = new GazeData
             //{
             //    timestamp = Time.unscaledTimeAsDouble - startingTime,
@@ -99,20 +107,30 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             Vector3 hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero;
             Vector3 localHitPosition;
 
-            /* CHECK IF GAZE HIT ON SELECTED MODEL */
+            Vector3 headPosition = CameraCache.Main.transform.position;
+            Vector3 headForward = CameraCache.Main.transform.forward;
+            Vector3 eyeOrigin = eyeProvider.GazeOrigin;
+            Vector3 eyeDirection = eyeProvider.GazeDirection;
+
+            // CHECK IF GAZE HIT ON SELECTED MODEL
             if (target != null && target.name == modelGameObject.name)
             {
-                /* CONVERT GAZE HIT FROM WORLD COORDINATE TO LOCAL COORDINATE */
+                // CONVERT GAZE HIT FROM WORLD COORDINATE TO LOCAL COORDINATE
                 localHitPosition = target.transform.InverseTransformPoint(hitPosition);
 
-                /* CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL */
+                // CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL
                 if (localBounds.Contains(localHitPosition))
                 {
-                    /* REVERT TRANSFORMS WHEN IMPORTING MODEL */
+                    // REVERT TRANSFORMS WHEN IMPORTING MODEL
                     localHitPosition = UnapplyUnityTransforms(localHitPosition, target.transform.eulerAngles);
 
-                    /* ADD GAZE DATA */
-                    pointcloudSB.AppendLine($"{localHitPosition.x:F6},{localHitPosition.y:F6},{localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6},{CameraCache.Main.transform.position:F6},{CameraCache.Main.transform.forward:F6},{eyeProvider.GazeOrigin:F6},{eyeProvider.GazeDirection:F6}");
+                    // ADD GAZE DATA
+                    pointcloudSB.AppendLine($"{localHitPosition.x:F6},{localHitPosition.y:F6},{localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6}," +
+                        $"{hitPosition.x:F6},{hitPosition.y:F6},{hitPosition.z:F6}," +
+                        $"{headPosition.x:F6},{headPosition.y:F6},{headPosition.z:F6}," +
+                        $"{headForward.x:F6},{headForward.y:F6},{headForward.z:F6}," +
+                        $"{eyeOrigin.x:F6},{eyeOrigin.y:F6},{eyeOrigin.z:F6}," +
+                        $"{eyeDirection.x:F6},{eyeDirection.y:F6},{eyeDirection.z:F6}");
                 }
             }
             else
@@ -120,7 +138,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
                 localHitPosition = Vector3.zero;
             }
 
-            return new Vector3[] { localHitPosition, hitPosition, eyeProvider.GazeDirection };
+            return new Vector3[] { localHitPosition, hitPosition, headPosition, headForward, eyeOrigin, eyeDirection };
         }
 
         #region AUDIO
@@ -200,7 +218,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
 
         private Vector3 UnapplyUnityTransforms(Vector3 originalVector, Vector3 anglesInDegrees)
         {
-            /* REVERSE ANY ROTATION ON MODEL */
+            // REVERSE ANY ROTATION ON MODEL
             Quaternion xRotation = Quaternion.AngleAxis(anglesInDegrees.x, Vector3.right);
             Quaternion yRotation = Quaternion.AngleAxis(anglesInDegrees.y, Vector3.up);
             Quaternion zRotation = Quaternion.AngleAxis(anglesInDegrees.z, Vector3.forward);
@@ -209,7 +227,7 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             rotatedVector = yRotation * rotatedVector;
             rotatedVector = zRotation * rotatedVector;
 
-            /* NEGATE X TO FLIP THE X-AXIS */
+            // NEGATE X TO FLIP THE X-AXIS
             return new Vector3(-rotatedVector.x, rotatedVector.y, rotatedVector.z);
         }
 
@@ -280,13 +298,18 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         #endregion
 
         #region QNA
-        public void OnQuestionnaireAnswered(string selectedAnswer, Vector3 localHitPosition)
+        public void OnQuestionnaireAnswered(string selectedAnswer, Vector3 localHitPosition, Vector3 globalHitPosition, Vector3 headPosition, Vector3 headForward, Vector3 eyeOrigin, Vector3 eyeDirection)
         {
             currentSession.questionnaireAnswers.Add(new QuestionnaireAnswer
             {
                 timestamp = Time.unscaledTimeAsDouble - startingTime,
                 answer = selectedAnswer,
-                estimatedGamePosition = localHitPosition
+                estimatedGazePosition = localHitPosition,
+                globalGazePosition = globalHitPosition,
+                headPosition = headPosition,
+                headForward = headForward,
+                eyeOrigin = eyeOrigin,
+                eyeDirection = eyeDirection
             });
         }
 
@@ -295,11 +318,18 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             if (currentSession.questionnaireAnswers.Count == 0) return;
 
             StringBuilder qa_sb = new StringBuilder();
-            qa_sb.AppendLine("estX,estY,estZ,answer,timestamp");
+            qa_sb.AppendLine("estX,estY,estZ,answer,timestamp,estGlobalX,estGlobalY,estGlobalZ," +
+                "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
+                "eyeDirectionX,eyeDirectionY,eyeDirectionZ");
 
             foreach (var qa in currentSession.questionnaireAnswers)
             {
-                qa_sb.AppendLine($"{qa.estimatedGamePosition.x:F6},{qa.estimatedGamePosition.y:F6},{qa.estimatedGamePosition.z:F6},{qa.answer},{qa.timestamp:F6}");
+                qa_sb.AppendLine($"{qa.estimatedGazePosition.x:F6},{qa.estimatedGazePosition.y:F6},{qa.estimatedGazePosition.z:F6},{qa.answer},{qa.timestamp:F6}," +
+                    $"{qa.globalGazePosition.x:F6},{qa.globalGazePosition.y:F6},{qa.globalGazePosition.z:F6}," +
+                    $"{qa.headPosition.x:F6},{qa.headPosition.y:F6},{qa.headPosition.z:F6}," +
+                    $"{qa.headForward.x:F6},{qa.headForward.y:F6},{qa.headForward.z:F6}," +
+                    $"{qa.eyeOrigin.x:F6},{qa.eyeOrigin.y:F6},{qa.eyeOrigin.z:F6}," +
+                    $"{qa.eyeDirection.x:F6},{qa.eyeDirection.y:F6},{qa.eyeDirection.z:F6}");
             }
 
             File.WriteAllText(Path.Combine(saveDir, "qa.csv"), qa_sb.ToString());

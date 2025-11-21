@@ -226,7 +226,6 @@ public class ERCGazeRecorder : MonoBehaviour
 
         if (val && currentModel != null)
         {
-            //sessionPath = DateTime.Now.ToString("yyyy_MM_dd_HH_mm_ss") + "_precision";
             numTargetAppeared = 1;
             timeInterval = Range(100, 151) / 100.0;
 
@@ -368,7 +367,7 @@ public class ERCGazeRecorder : MonoBehaviour
 
     private Vector3 UnapplyUnityTransforms(Vector3 originalVector, Vector3 anglesInDegrees)
     {
-        /* REVERSE ANY ROTATION ON MODEL */
+        // REVERSE ANY ROTATION ON MODEL
         Quaternion xRotation = Quaternion.AngleAxis(anglesInDegrees.x, Vector3.right);
         Quaternion yRotation = Quaternion.AngleAxis(anglesInDegrees.y, Vector3.up);
         Quaternion zRotation = Quaternion.AngleAxis(anglesInDegrees.z, Vector3.forward);
@@ -377,7 +376,7 @@ public class ERCGazeRecorder : MonoBehaviour
         rotatedVector = yRotation * rotatedVector;
         rotatedVector = zRotation * rotatedVector;
 
-        /* NEGATE X TO FLIP THE X-AXIS */
+        // NEGATE X TO FLIP THE X-AXIS
         return new Vector3(-rotatedVector.x, rotatedVector.y, rotatedVector.z);
     }
 

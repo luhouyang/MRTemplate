@@ -29,7 +29,7 @@ namespace IndividualModel
         // Record audio
         private AudioSource audioSource;
 
-        // QNA
+        // QNA & Variable Prompts
         //private Dictionary<string, string> answerChoices = new Dictionary<string, string> {
         //    {"4", "面白い・気になる形だ" },
         //    {"6", "美しい・芸術的だ" },
@@ -51,8 +51,16 @@ namespace IndividualModel
             {"2", 3 },
             {"5", 4 },
         };
+        //private string question = "「この土器/土偶の全体的あるいは部分的な印象をなるべく具体的な言葉を使って45秒以内で話してください」";
+        private string question = "Please speak your overall or partial impression of this pottery/clay figurine in 45 seconds or less using as specific words as possible.";
+        //private string enterText = "「Enter」キーを押してください";
+        private string enterText = "Press 'ENTER'";
+
         private Vector3 lastLocalHitPosition = Vector3.zero;
         private Vector3 globalHitPosition = Vector3.zero;
+        private Vector3 lastHeadPosition = Vector3.zero;
+        private Vector3 lastHeadForward = Vector3.zero;
+        private Vector3 lastEyeOrigin = Vector3.zero;
         private Vector3 hitNormal = Vector3.zero;
 
         // Heatmap
@@ -66,10 +74,7 @@ namespace IndividualModel
         [SerializeField] private GameObject promptObject;
         // Audio recording prompt variables
         private Vector3 promptInitialPosition;
-        //private string question = "「この土器/土偶の全体的あるいは部分的な印象をなるべく具体的な言葉を使って45秒以内で話してください」";
-        private string question = "Please speak your overall or partial impression of this pottery/clay figurine in 45 seconds or less using as specific words as possible.";
-        //private string enterText = "「Enter」キーを押してください";
-        private string enterText = "Press 'ENTER'";
+        
         private float rotationSpeed = 5f;
         private float rotationThresholdDegrees = 1.0f;
         private float followDistance = 1.5f;
@@ -143,17 +148,17 @@ namespace IndividualModel
 
         public void SetIsRecording(bool val)
         {
-            /* Reset & clear variables (isRecording, timer, savedGaze) */
+            // Reset & clear variables (isRecording, timer, savedGaze) 
             isRecording = val;
             timer = recordGazeDuration + recordVoiceDuration; // reset timer
             savedGaze = !val; // reset recording state
 
-            /* Toggle viewBlocker */
+            // Toggle viewBlocker
             viewBlocker.SetActive(!val);
 
             if (val && IndividualModelController.currentModel != null)
             {
-                /* Create data directory */
+                // Create data directory
                 string saveDir = Path.Combine(Application.persistentDataPath, sessionPath, gameObject.name);
                 if (!Directory.Exists(saveDir))
                 {
@@ -174,10 +179,10 @@ namespace IndividualModel
             }
             else if (!val && isRecordingAudio)
             {
-                /* Stop voice recording */
+                // Stop voice recording
                 StopAudioRecording();
 
-                /* Export voice recording data */
+                // Export voice recording data
                 dataModule.SaveFileList();
             }
         }
@@ -195,14 +200,14 @@ namespace IndividualModel
         #region EXPERIMENT FLOWS
         private void EyeGazeAndQNAThenVoice()
         {
-            /* CHECK IF RECORDING STARTED */
+            // CHECK IF RECORDING STARTED 
             if (!isRecording || IndividualModelController.currentModel == null) return;
 
-            /* GET GAZED OBJECT */
+            // GET GAZED OBJECT
             var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
             var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
-            /* RECORD GAZE DATA */
+            // RECORD GAZE DATA
             if (timer > recordVoiceDuration)
             {
                 timer -= Time.deltaTime;
@@ -220,7 +225,7 @@ namespace IndividualModel
 
                 CheckKeyboardInput();
             }
-            /* RECORD VOICE DATA */
+            // RECORD VOICE DATA
             else if (timer > 0)
             {
                 timer -= Time.deltaTime;
@@ -276,14 +281,14 @@ namespace IndividualModel
 
         private void EyeGazeAndQNAOnly()
         {
-            /* CHECK IF RECORDING STARTED */
+            // CHECK IF RECORDING STARTED
             if (!isRecording || IndividualModelController.currentModel == null) return;
 
-            /* GET GAZED OBJECT */
+            // GET GAZED OBJECT
             var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
             var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
-            /* RECORD GAZE DATA */
+            // RECORD GAZE DATA
             if (timer > 0)
             {
                 timer -= Time.deltaTime;
@@ -294,7 +299,10 @@ namespace IndividualModel
                 {
                     lastLocalHitPosition = gaze[0];
                     globalHitPosition = gaze[1];
-                    hitNormal = gaze[2];
+                    lastHeadPosition = gaze[2];
+                    lastHeadForward = gaze[3];
+                    lastEyeOrigin = gaze[4];
+                    hitNormal = gaze[5];
                 }
 
                 promptObject.GetComponent<TextMeshPro>().SetText($"VIEWING TIME: {(timer - recordVoiceDuration):F1}");
@@ -362,7 +370,7 @@ namespace IndividualModel
 
             if (answerKey != "")
             {
-                dataModule.OnQuestionnaireAnswered(answerChoices[answerKey], lastLocalHitPosition);
+                dataModule.OnQuestionnaireAnswered(answerChoices[answerKey], lastLocalHitPosition, globalHitPosition, lastHeadPosition, lastHeadForward, lastEyeOrigin, hitNormal);
                 if (gameObject.GetComponent<DrawOn3DTexture>().enabled == true)
                 {
                     gameObject.GetComponent<DrawOn3DTexture>().SpawnMarkerAtPosition(markerPrefabs[markerMapping[answerKey]], globalHitPosition, hitNormal);
@@ -388,7 +396,7 @@ namespace IndividualModel
         #region AUDIO DATA
         private void StartAudioRecording()
         {
-            /* RECORD AUDIO FOR 60 SECONDS */
+            // RECORD AUDIO FOR 60 SECONDS
             recordedAudio = Microphone.Start(null, false, 60, audioSampleRate); // loop = false
             isRecordingAudio = true;
             chunkStartTime = Time.time;
@@ -400,7 +408,7 @@ namespace IndividualModel
             if (!isRecordingAudio) return;
             Microphone.End(null);
 
-            /* SAVE AUDIO CLIP */
+            // SAVE AUDIO CLIP
             dataModule.SaveAudioData(recordedAudio, chunkIndex);
             isRecordingAudio = false;
             Debug.Log("Stopped audio recording and saved final chunk.");

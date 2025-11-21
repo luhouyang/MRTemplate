@@ -133,14 +133,14 @@ namespace MuseumModel
         #region EXPERIMENT FLOWS
         private void EyeGazeFlow()
         {
-            /* CHECK IF RECORDING STARTED */
+            // CHECK IF RECORDING STARTED
             if (!isRecording || MuseumLayoutController.currentLayout == null) return;
 
-            /* GET GAZED OBJECT */
+            // GET GAZED OBJECT
             var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
             var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
-            /* RECORD GAZE DATA */
+            // RECORD GAZE DATA
             if (timer > 0)
             {
                 timer -= Time.deltaTime;
@@ -201,7 +201,7 @@ namespace MuseumModel
             {
                 if (MuseumLayoutController.currentLayout == null || CameraCache.Main == null) return;
 
-                /* GET GAZED OBJECT */
+                // GET GAZED OBJECT
                 var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
                 var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
@@ -215,7 +215,7 @@ namespace MuseumModel
                     platformCheckTimer -= Time.deltaTime;
                 }
 
-                /* RECORD GAZE DATA */
+                // RECORD GAZE DATA
                 if (!isOverPlatform)
                 {
                     timer -= Time.deltaTime;
