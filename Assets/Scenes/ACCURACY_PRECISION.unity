@@ -478,6 +478,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 60
   multipleTarget: 1
   is3DObject: 1
@@ -2248,6 +2249,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 60
   multipleTarget: 0
   is3DObject: 0
@@ -4232,6 +4234,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 30
   multipleTarget: 1
   is3DObject: 0
@@ -5348,6 +5351,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 60
   multipleTarget: 0
   is3DObject: 0
@@ -6689,6 +6693,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 30
   multipleTarget: 1
   is3DObject: 0
@@ -21792,6 +21797,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 0}
   numTarget: 60
   multipleTarget: 1
   is3DObject: 1
@@ -23879,6 +23885,7 @@ GameObject:
   - component: {fileID: 2025145336}
   - component: {fileID: 2025145335}
   - component: {fileID: 2025145334}
+  - component: {fileID: 2025145338}
   m_Layer: 0
   m_Name: PlaneFar
   m_TagString: Untagged
@@ -23995,6 +24002,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 296f628611b7f03469b901a3ef927144, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  extendedEyeGazeDataProvider: {fileID: 2025145338}
   numTarget: 30
   multipleTarget: 1
   is3DObject: 0
@@ -24084,6 +24092,21 @@ MeshCollider:
   m_Convex: 0
   m_CookingOptions: 30
   m_Mesh: {fileID: 10202, guid: 0000000000000000e000000000000000, type: 0}
+--- !u!114 &2025145338
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2025145329}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: eb1f4e42775adac4d933c60a6152022b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  gazeTargetLayers:
+    serializedVersion: 2
+    m_Bits: 51
 --- !u!1001 &2025981872
 PrefabInstance:
   m_ObjectHideFlags: 0

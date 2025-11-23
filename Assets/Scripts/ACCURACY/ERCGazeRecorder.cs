@@ -6,7 +6,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Microsoft.MixedReality.Toolkit;
 using Microsoft.MixedReality.Toolkit.Input;
-using Microsoft.MixedReality.Toolkit.MRTemplate;
+// using Microsoft.MixedReality.Toolkit.MRTemplate; // Commented out if not needed, or keep if your project uses it
 using Microsoft.MixedReality.Toolkit.Utilities;
 using TMPro;
 using static UnityEngine.Random;
@@ -25,6 +25,12 @@ public class ERCGazeRecorder : MonoBehaviour
         public string targetName;
         public Vector3 localHitPosition;
     }
+
+    // --- FIX: Reference to the provider ---
+    [Header("References")]
+    [SerializeField]
+    private ExtendedEyeGazeDataProvider extendedEyeGazeDataProvider;
+    // --------------------------------------
 
     [Header("Random Saccade Task")]
     [SerializeField]
@@ -93,6 +99,17 @@ public class ERCGazeRecorder : MonoBehaviour
 
     void Start()
     {
+        // --- FIX: Initialize the provider if not assigned in Inspector ---
+        if (extendedEyeGazeDataProvider == null)
+        {
+            extendedEyeGazeDataProvider = FindObjectOfType<ExtendedEyeGazeDataProvider>();
+            if (extendedEyeGazeDataProvider == null)
+            {
+                Debug.LogError("ERCGazeRecorder: Could not find ExtendedEyeGazeDataProvider in the scene!");
+            }
+        }
+        // ----------------------------------------------------------------
+
         // deactivate all points
         for (int i = 0; i < targetList.Count; i++)
         {
@@ -108,7 +125,8 @@ public class ERCGazeRecorder : MonoBehaviour
                 {
                     targetList3D.Add(targetsTemp);
                     targetsTemp = new List<GameObject>();
-                } else
+                }
+                else
                 {
                     targetsTemp.Add(targetList[i]);
                 }
@@ -126,7 +144,7 @@ public class ERCGazeRecorder : MonoBehaviour
     {
         if (!isRecording || currentModel == null) return;
 
-        var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+        var eyeTarget = ExtendedEyeGazeDataProvider.LookedAtEyeTarget;
         var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
 
         RecordGazeData(gazedObject);
@@ -140,13 +158,13 @@ public class ERCGazeRecorder : MonoBehaviour
                     ResetAll();
                     SaveAllData();
 
-                    ERCGazeController.ToggleRecorded();
+                    // ERCGazeController.ToggleRecorded(); // Check if this class exists in your project
                 }
                 else
                 {
                     timeInterval = Range(100, 151) / 100.0;
                     currentTarget.SetActive(false);
-                    
+
                     if (is3DObject)
                     {
                         if (numTargetAppeared % numTargetPerFace == 0)
@@ -162,7 +180,8 @@ public class ERCGazeRecorder : MonoBehaviour
                         }
                         currentIndex = nextIndex;
                         currentTarget = targetList3D[currentFaceIndex][currentIndex];
-                    } else
+                    }
+                    else
                     {
                         int nextIndex = Range(0, targetList.Count);
                         while (currentIndex == nextIndex)
@@ -206,14 +225,15 @@ public class ERCGazeRecorder : MonoBehaviour
                     ResetAll();
                     SaveAllData();
 
-                    ERCGazeController.ToggleRecorded();
+                    // ERCGazeController.ToggleRecorded();
                 }
 
                 timeInterval = Range(100, 151) / 100.0;
                 numTargetAppeared++;
             }
-            
-        } else
+
+        }
+        else
         {
             timeInterval -= Time.deltaTime;
         }
@@ -238,6 +258,8 @@ public class ERCGazeRecorder : MonoBehaviour
                 "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
                 "eyeDirectionX,eyeDirectionY,eyeDirectionZ,timestamp,targetName");
 
+            Debug.Log($"Recording Started. Target Model: {currentModel.name}. Save Path: {saveDir}. Bounds: {localBounds}");
+
             if (!Directory.Exists(saveDir))
             {
                 Directory.CreateDirectory(saveDir);
@@ -250,14 +272,15 @@ public class ERCGazeRecorder : MonoBehaviour
                     currentFaceIndex = 0;
                     currentIndex = Range(0, targetList3D[currentFaceIndex].Count);
                     currentTarget = targetList3D[currentFaceIndex][currentIndex];
-                } else
+                }
+                else
                 {
                     currentIndex = Range(0, targetList.Count);
                     currentTarget = targetList[currentIndex];
                 }
                 currentTarget.SetActive(true);
             }
-            else if (isContinuous) 
+            else if (isContinuous)
             {
                 stepTimer = -0.1f;
                 movementSteps = 0;
@@ -270,45 +293,68 @@ public class ERCGazeRecorder : MonoBehaviour
         }
     }
 
+
     private void RecordGazeData(GameObject target)
     {
-        var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
-        if (eyeProvider == null) return;
+        if (extendedEyeGazeDataProvider == null) return;
+
+        DateTime timestamp = DateTime.Now;
+        var eyeProvider = extendedEyeGazeDataProvider.GetCameraSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, timestamp);
 
         var gaze = new GazeData
         {
             timestamp = Time.unscaledTimeAsDouble - startingTime,
             headPosition = CameraCache.Main.transform.position,
             headForward = CameraCache.Main.transform.forward,
-            eyeOrigin = eyeProvider.GazeOrigin,
+            eyeOrigin = eyeProvider.EyePosition,
             eyeDirection = eyeProvider.GazeDirection,
-            hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
+            hitPosition = eyeProvider.IsValid ? eyeProvider.HitPosition : Vector3.zero,
             targetName = target != null ? target.name : "null"
         };
 
-        if (target != null && target.name == currentModel.name)
+        if (target != null)
         {
-            Vector3 tarTrans = (multipleTarget || isContinuous) ? currentTarget.transform.position : Vector3.zero;
-            Vector3 tarTransLocal = target.transform.InverseTransformPoint(tarTrans);
-            gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
-            Vector3 pos = gaze.localHitPosition;
-            if (localBounds.Contains(pos) && gaze.targetName == target.name && gaze.targetName != "null")
+            if (target.name == currentModel.name)
             {
-                pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
-                    $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
-                    $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
-                    $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
-                    $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
-                    $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
-                    $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
-                    $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
-                    $"{(gaze.timestamp):F6},{(currentTarget != null ? currentTarget.name : "null")}");
-                zSum += pos.z;
-                zNum += 1.0f;
+                Vector3 tarTrans = (multipleTarget || isContinuous) ? currentTarget.transform.position : Vector3.zero;
+                Vector3 tarTransLocal = target.transform.InverseTransformPoint(tarTrans);
+                gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
+                gaze.localHitPosition = UnapplyUnityTransforms(gaze.localHitPosition, target.transform.eulerAngles);
+                Vector3 pos = gaze.localHitPosition;
+
+                // --- DEBUGGING ---
+                bool boundsCheck = localBounds.Contains(pos);
+                bool nameCheck = gaze.targetName == target.name;
+                bool nullCheck = gaze.targetName != "null";
+
+                if (boundsCheck && nameCheck && nullCheck)
+                {
+                    pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
+                        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+                        $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
+                        $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
+                        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+                        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+                        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
+                        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
+                        $"{(gaze.timestamp):F6},{(currentTarget != null ? currentTarget.name : "null")}");
+                    zSum += pos.z;
+                    zNum += 1.0f;
+                    // Debug.Log("SUCCESS: Data recorded for frame.");
+                }
+                else
+                {
+                    Debug.LogWarning($"REJECTED: Bounds: {boundsCheck} ({pos}), NameMatch: {nameCheck} ({gaze.targetName} vs {target.name}), Valid: {nullCheck}");
+                }
+            }
+            else
+            {
+                Debug.Log($"MISMATCH: Gaze Object ({target.name}) != Current Model ({currentModel.name})");
             }
         }
         else
         {
+            // Debug.Log("Target is null (No object looked at)");
             gaze.localHitPosition = Vector3.zero;
         }
     }
