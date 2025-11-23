@@ -11,9 +11,12 @@ EditorBuildSettings:
   - enabled: 0
     path: Assets/Scenes/RealWorld.unity
     guid: d422204a199ff1c458943c2d3f22e40e
-  - enabled: 1
-    path: Assets/Scenes/Additional/Museum_Small.unity
+  - enabled: 0
+    path: Assets/Scenes/Additional/Small_Museum.unity
     guid: c92c045769e184149aa3698b1f786290
+  - enabled: 1
+    path: Assets/Scenes/Additional/Max_Museum.unity
+    guid: a3348bcf673ad4449a4dbeb649b4566c
   m_configObjects:
     com.unity.xr.arfoundation.simulation_settings: {fileID: 11400000, guid: c053530083c29c944bd94aaad6e104e9, type: 2}
     com.unity.xr.management.loader_settings: {fileID: 11400000, guid: 6e06a9a44eca6d540830dfb4b26adec2, type: 2}
