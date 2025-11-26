@@ -3,22 +3,17 @@
 
 using UnityEngine;
 using System;
+using System.Collections.Generic;
 using Microsoft.MixedReality.OpenXR;
 using Microsoft.MixedReality.EyeTracking;
-// Include MRTK namespace for EyeTrackingTarget and CoreServices fallback
 using Microsoft.MixedReality.Toolkit;
 using Microsoft.MixedReality.Toolkit.Input;
+using Microsoft.MixedReality.Toolkit.Utilities;
 
 [DisallowMultipleComponent]
 public class ExtendedEyeGazeDataProvider : MonoBehaviour
 {
-    // --- NEW: Static Accessor on this script ---
-    /// <summary>
-    /// The global static reference to the EyeTrackingTarget currently being looked at.
-    /// Access this from anywhere: ExtendedEyeGazeDataProvider.LookedAtEyeTarget
-    /// </summary>
     public static EyeTrackingTarget LookedAtEyeTarget { get; private set; }
-    // -------------------------------------------
 
     public enum GazeType
     {
@@ -34,14 +29,20 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
         public Vector3 GazeDirection;
         public bool IsLookingAtAttachedObject;
         public Vector3 HitPosition;
+        public DateTime Timestamp;
+        public Vector3 HeadPosition;
+        public Vector3 HeadForward;
 
-        public GazeReading(bool isValid, Vector3 position, Vector3 direction, bool isLookingAtObj = false, Vector3 hitPos = default(Vector3))
+        public GazeReading(bool isValid, Vector3 position, Vector3 direction, DateTime timestamp, bool isLookingAtObj = false, Vector3 hitPos = default(Vector3))
         {
             IsValid = isValid;
             EyePosition = position;
             GazeDirection = direction;
+            Timestamp = timestamp;
             IsLookingAtAttachedObject = isLookingAtObj;
             HitPosition = hitPos;
+            HeadPosition = Vector3.zero;
+            HeadForward = Vector3.forward;
         }
     }
 
@@ -51,8 +52,10 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
     private EyeGazeTrackerReading _eyeGazeTrackerReading;
     private System.Numerics.Vector3 _trackerSpaceGazeOrigin;
     private System.Numerics.Vector3 _trackerSpaceGazeDirection;
+
     private GazeReading _gazeReading;
-    private GazeReading _invalidGazeReading = new GazeReading(false, Vector3.zero, Vector3.zero, false, Vector3.zero);
+    private GazeReading _invalidGazeReading = new GazeReading(false, Vector3.zero, Vector3.zero, DateTime.MinValue, false, Vector3.zero);
+
     private bool _gazePermissionEnabled;
     private bool _readingSucceeded;
     private SpatialGraphNode _eyeGazeTrackerNode;
@@ -61,7 +64,6 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
     private Matrix4x4 _eyeGazeTrackerSpaceToWorld = new Matrix4x4();
     private Transform _mixedRealityPlayspace;
 
-    // Cache the collider for the "Attached Object" check
     private Collider _attachedCollider;
 
     [SerializeField]
@@ -99,40 +101,32 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
         await _watcher.StartAsync();
     }
 
-    /// <summary>
-    /// Update loop to continuously update ExtendedEyeGazeDataProvider.LookedAtEyeTarget
-    /// </summary>
     private void Update()
     {
-        // --- MODIFICATION: Allow running even if _eyeGazeTracker is null (using Fallback) ---
-        // if (!_gazePermissionEnabled || _eyeGazeTracker == null) return;
-
-        // 1. Get the current Gaze Reading (Handles Fallback Internally)
-        GazeReading currentReading = GetWorldSpaceGazeReading(GazeType.Combined, DateTime.Now);
+        GazeReading currentReading = GetWorldSpaceGazeReading(GazeType.Combined, DateTime.UtcNow);
 
         if (currentReading.IsValid)
         {
             RaycastHit hit;
             EyeTrackingTarget newTarget = null;
 
-            // 2. Raycast to find EyeTrackingTarget
-            if (Physics.Raycast(currentReading.EyePosition, currentReading.GazeDirection, out hit, MaxGazeDistance, gazeTargetLayers))
+            if (currentReading.IsLookingAtAttachedObject)
             {
-                newTarget = hit.collider.GetComponent<EyeTrackingTarget>();
+                if (Physics.Raycast(currentReading.EyePosition, currentReading.GazeDirection, out hit, MaxGazeDistance, gazeTargetLayers))
+                {
+                    newTarget = hit.collider.GetComponent<EyeTrackingTarget>();
+                }
             }
 
-            // 3. Update the Static Reference and trigger events
             if (newTarget != LookedAtEyeTarget)
             {
                 if (LookedAtEyeTarget != null) LookedAtEyeTarget.OnLookAway?.Invoke();
                 if (newTarget != null) newTarget.OnLookAtStart?.Invoke();
-
                 LookedAtEyeTarget = newTarget;
             }
         }
         else
         {
-            // Gaze lost: Clear the target
             if (LookedAtEyeTarget != null)
             {
                 LookedAtEyeTarget.OnLookAway?.Invoke();
@@ -141,115 +135,150 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
         }
     }
 
-    public GazeReading GetCameraSpaceGazeReading(GazeType gazeType)
+    public int GetWorldSpaceGazeReadingsSince(DateTime sinceTimestamp, GazeType gazeType, List<GazeReading> bufferToFill)
     {
-        return GetCameraSpaceGazeReading(gazeType, DateTime.Now);
-    }
+        bufferToFill.Clear();
 
-    public GazeReading GetCameraSpaceGazeReading(GazeType gazeType, DateTime timestamp)
-    {
-        _gazeReading = GetWorldSpaceGazeReading(gazeType, timestamp);
-        if (!_gazeReading.IsValid) return _invalidGazeReading;
+        if (!_gazePermissionEnabled || _eyeGazeTracker == null) return 0;
 
-        _gazeReading.EyePosition = _mainCamera.transform.InverseTransformPoint(_gazeReading.EyePosition);
-        _gazeReading.GazeDirection = _mainCamera.transform.InverseTransformDirection(_gazeReading.GazeDirection).normalized;
+        int count = 0;
+        DateTime itrTimestamp = sinceTimestamp;
 
-        if (_gazeReading.IsLookingAtAttachedObject)
+        while (true)
         {
-            _gazeReading.HitPosition = _mainCamera.transform.InverseTransformPoint(_gazeReading.HitPosition);
+            var reading = _eyeGazeTracker.TryGetReadingAfterTimestamp(itrTimestamp);
+
+            if (reading == null) break;
+
+            if (reading.Timestamp <= itrTimestamp)
+            {
+                itrTimestamp = itrTimestamp.AddTicks(1);
+                continue;
+            }
+
+            GazeReading processedReading = ProcessSingleReading(reading, gazeType);
+
+            if (processedReading.IsValid)
+            {
+                bufferToFill.Add(processedReading);
+                itrTimestamp = reading.Timestamp;
+                count++;
+            }
+            else
+            {
+                itrTimestamp = reading.Timestamp;
+            }
+
+            if (count > 10) break;
         }
 
-        _gazeReading.IsValid = true;
-        return _gazeReading;
+        return count;
     }
 
-    public GazeReading GetWorldSpaceGazeReading(GazeType gazeType)
+    private GazeReading ProcessSingleReading(EyeGazeTrackerReading rawReading, GazeType gazeType)
     {
-        return GetWorldSpaceGazeReading(gazeType, DateTime.Now);
+        _readingSucceeded = false;
+        switch (gazeType)
+        {
+            case GazeType.Left:
+                _readingSucceeded = rawReading.TryGetLeftEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
+                break;
+            case GazeType.Right:
+                _readingSucceeded = rawReading.TryGetRightEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
+                break;
+            case GazeType.Combined:
+                _readingSucceeded = rawReading.TryGetCombinedEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
+                break;
+        }
+
+        if (_readingSucceeded && _eyeGazeTrackerNode.TryLocate(rawReading.SystemRelativeTime.Ticks, out _eyeGazeTrackerPose))
+        {
+            _eyeGazeTrackerSpaceToPlayspace.SetTRS(_eyeGazeTrackerPose.position, _eyeGazeTrackerPose.rotation, Vector3.one);
+            _eyeGazeTrackerSpaceToWorld = (_mixedRealityPlayspace != null) ?
+                    _mixedRealityPlayspace.localToWorldMatrix * _eyeGazeTrackerSpaceToPlayspace :
+                    _eyeGazeTrackerSpaceToPlayspace;
+
+            GazeReading result = new GazeReading();
+            result.Timestamp = rawReading.Timestamp;
+            result.EyePosition = _eyeGazeTrackerSpaceToWorld.MultiplyPoint3x4(ToUnity(_trackerSpaceGazeOrigin));
+            result.GazeDirection = _eyeGazeTrackerSpaceToWorld.MultiplyVector(ToUnity(_trackerSpaceGazeDirection));
+
+            result.HeadPosition = _eyeGazeTrackerSpaceToWorld.GetColumn(3);
+            result.HeadForward = _eyeGazeTrackerSpaceToWorld.GetColumn(2);
+
+            result.IsLookingAtAttachedObject = CheckIfGazeHitsTargetLayer(result.EyePosition, result.GazeDirection, out Vector3 hitPos);
+            result.HitPosition = hitPos;
+
+            result.IsValid = true;
+            return result;
+        }
+
+        return _invalidGazeReading;
     }
 
     public GazeReading GetWorldSpaceGazeReading(GazeType gazeType, DateTime timestamp)
     {
-        // ---------------------------------------------------------
-        // PRIORITY 1: Try Extended Eye Tracker (Hardware / Remoting)
-        // ---------------------------------------------------------
         if (_gazePermissionEnabled && _eyeGazeTracker != null)
         {
-            _eyeGazeTrackerReading = _eyeGazeTracker.TryGetReadingAtTimestamp(timestamp);
-            if (_eyeGazeTrackerReading != null)
+            var reading = _eyeGazeTracker.TryGetReadingAtTimestamp(timestamp);
+            if (reading != null)
             {
-                _readingSucceeded = false;
-                switch (gazeType)
-                {
-                    case GazeType.Left:
-                        _readingSucceeded = _eyeGazeTrackerReading.TryGetLeftEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
-                        break;
-                    case GazeType.Right:
-                        _readingSucceeded = _eyeGazeTrackerReading.TryGetRightEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
-                        break;
-                    case GazeType.Combined:
-                        _readingSucceeded = _eyeGazeTrackerReading.TryGetCombinedEyeGazeInTrackerSpace(out _trackerSpaceGazeOrigin, out _trackerSpaceGazeDirection);
-                        break;
-                }
-
-                if (_readingSucceeded && _eyeGazeTrackerNode.TryLocate(_eyeGazeTrackerReading.SystemRelativeTime.Ticks, out _eyeGazeTrackerPose))
-                {
-                    _eyeGazeTrackerSpaceToPlayspace.SetTRS(_eyeGazeTrackerPose.position, _eyeGazeTrackerPose.rotation, Vector3.one);
-                    _eyeGazeTrackerSpaceToWorld = (_mixedRealityPlayspace != null) ?
-                            _mixedRealityPlayspace.localToWorldMatrix * _eyeGazeTrackerSpaceToPlayspace :
-                            _eyeGazeTrackerSpaceToPlayspace;
-
-                    _gazeReading.EyePosition = _eyeGazeTrackerSpaceToWorld.MultiplyPoint3x4(ToUnity(_trackerSpaceGazeOrigin));
-                    _gazeReading.GazeDirection = _eyeGazeTrackerSpaceToWorld.MultiplyVector(ToUnity(_trackerSpaceGazeDirection));
-
-                    _gazeReading.IsLookingAtAttachedObject = CheckIfGazeHitsAttachedCollider(_gazeReading.EyePosition, _gazeReading.GazeDirection, out Vector3 hitPos);
-                    _gazeReading.HitPosition = hitPos;
-                    _gazeReading.IsValid = true;
-
-                    return _gazeReading;
-                }
+                return ProcessSingleReading(reading, gazeType);
             }
         }
 
-        // ---------------------------------------------------------
-        // PRIORITY 2: Fallback to MRTK Standard Input (Editor Mouse / Standard Gaze)
-        // ---------------------------------------------------------
-        if (CoreServices.InputSystem?.EyeGazeProvider != null)
+        if (CoreServices.InputSystem?.EyeGazeProvider != null && gazeType == GazeType.Combined)
         {
-            // Only use fallback if we requested Combined gaze (Simulated gaze is usually combined)
-            if (gazeType == GazeType.Combined)
+            _gazeReading.Timestamp = DateTime.Now;
+            _gazeReading.EyePosition = CoreServices.InputSystem.EyeGazeProvider.GazeOrigin;
+            _gazeReading.GazeDirection = CoreServices.InputSystem.EyeGazeProvider.GazeDirection;
+
+            if (CameraCache.Main != null)
             {
-                _gazeReading.EyePosition = CoreServices.InputSystem.EyeGazeProvider.GazeOrigin;
-                _gazeReading.GazeDirection = CoreServices.InputSystem.EyeGazeProvider.GazeDirection;
+                _gazeReading.HeadPosition = CameraCache.Main.transform.position;
+                _gazeReading.HeadForward = CameraCache.Main.transform.forward;
+            }
 
-                // MRTK editor simulation often marks data valid even if using mouse
-                _gazeReading.IsValid = CoreServices.InputSystem.EyeGazeProvider.IsEyeTrackingDataValid || Application.isEditor;
+            _gazeReading.IsValid = CoreServices.InputSystem.EyeGazeProvider.IsEyeTrackingDataValid || Application.isEditor;
 
-                if (_gazeReading.IsValid)
-                {
-                    _gazeReading.IsLookingAtAttachedObject = CheckIfGazeHitsAttachedCollider(_gazeReading.EyePosition, _gazeReading.GazeDirection, out Vector3 hitPos);
-                    _gazeReading.HitPosition = hitPos;
-                    return _gazeReading;
-                }
+            if (_gazeReading.IsValid)
+            {
+                _gazeReading.IsLookingAtAttachedObject = CheckIfGazeHitsTargetLayer(_gazeReading.EyePosition, _gazeReading.GazeDirection, out Vector3 hitPos);
+                _gazeReading.HitPosition = hitPos;
+                return _gazeReading;
             }
         }
 
         return _invalidGazeReading;
     }
 
-    private bool CheckIfGazeHitsAttachedCollider(Vector3 origin, Vector3 direction, out Vector3 hitPoint)
+    public GazeReading GetCameraSpaceGazeReading(GazeType gazeType)
+    {
+        return GetCameraSpaceGazeReading(gazeType, DateTime.UtcNow);
+    }
+
+    public GazeReading GetCameraSpaceGazeReading(GazeType gazeType, DateTime timestamp)
+    {
+        var reading = GetWorldSpaceGazeReading(gazeType, timestamp);
+        if (!reading.IsValid) return reading;
+
+        reading.EyePosition = _mainCamera.transform.InverseTransformPoint(reading.EyePosition);
+        reading.GazeDirection = _mainCamera.transform.InverseTransformDirection(reading.GazeDirection).normalized;
+        if (reading.IsLookingAtAttachedObject)
+        {
+            reading.HitPosition = _mainCamera.transform.InverseTransformPoint(reading.HitPosition);
+        }
+        return reading;
+    }
+
+    private bool CheckIfGazeHitsTargetLayer(Vector3 origin, Vector3 direction, out Vector3 hitPoint)
     {
         hitPoint = Vector3.zero;
-        if (_attachedCollider == null) return false;
-
         RaycastHit hit;
-        if (Physics.Raycast(origin, direction, out hit, MaxGazeDistance))
+        if (Physics.Raycast(origin, direction, out hit, MaxGazeDistance, gazeTargetLayers))
         {
-            if (hit.collider == _attachedCollider)
-            {
-                hitPoint = hit.point;
-                return true;
-            }
+            hitPoint = hit.point;
+            return true;
         }
         return false;
     }
@@ -268,7 +297,22 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
             await e.OpenAsync(true);
             _eyeGazeTracker = e;
             var supportedFrameRates = _eyeGazeTracker.SupportedTargetFrameRates;
-            _eyeGazeTracker.SetTargetFrameRate(supportedFrameRates[supportedFrameRates.Count - 1]);
+
+            if (supportedFrameRates.Count > 0)
+            {
+                EyeGazeTrackerFrameRate highestRate = supportedFrameRates[0];
+                foreach (var rate in supportedFrameRates)
+                {
+                    if (rate.FramesPerSecond > highestRate.FramesPerSecond)
+                    {
+                        highestRate = rate;
+                    }
+                }
+
+                _eyeGazeTracker.SetTargetFrameRate(highestRate);
+                Debug.Log($"ExtendedEyeGazeDataProvider: Set Target Frame Rate to {highestRate.FramesPerSecond} FPS");
+            }
+
             _eyeGazeTrackerNode = SpatialGraphNode.FromDynamicNodeId(e.TrackerSpaceLocatorNodeId);
         }
         catch (Exception ex)

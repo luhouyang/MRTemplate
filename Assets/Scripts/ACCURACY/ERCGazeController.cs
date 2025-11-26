@@ -50,13 +50,13 @@ public class ERCGazeController : MonoBehaviour
                 if (modelRecorder != null)
                 {
                     models[j].GetComponent<ERCGazeRecorder>().sessionPath = sessionPath;
-                    models[j].GetComponent<EyeTrackingTarget>().enabled = false;
+                    //models[j].GetComponent<EyeTrackingTarget>().enabled = false;
                     models[j].SetActive(false);
                 }
             }
         }
 
-        if (!enableLiveHeatmapOnStart) { DisableAllLiveHeatmap(); } 
+        //if (!enableLiveHeatmapOnStart) { DisableAllLiveHeatmap(); } 
 
         promptObject.SetActive(false);
 
@@ -85,7 +85,7 @@ public class ERCGazeController : MonoBehaviour
         {
             startButton.SetActive(false);
             currentModel.GetComponent<ERCGazeRecorder>().SetIsRecording(true);
-            currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
+            //currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
         }
     }
 
@@ -95,7 +95,7 @@ public class ERCGazeController : MonoBehaviour
         {
             currentModel.GetComponent<ERCGazeRecorder>().SetIsRecording(false);
             currentModel.GetComponent<ERCGazeRecorder>().SaveAllData();
-            currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
+            //currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
         }
     }
 
@@ -107,7 +107,7 @@ public class ERCGazeController : MonoBehaviour
         {
             currentModel.transform.parent.SetPositionAndRotation(previousModelPosition, new Quaternion());
             StopRecording();
-            currentModel.GetComponent<DrawOn3DTexture>().ClearDrawing();
+            //currentModel.GetComponent<DrawOn3DTexture>().ClearDrawing();
             currentModel.SetActive(false);
         }
 
@@ -202,18 +202,18 @@ public class ERCGazeController : MonoBehaviour
     }
 
     #region Admin Panel Toggles
-    public void DisableAllLiveHeatmap()
-    {
-        for (int i = 0; i < groups.Count; i++)
-        {
-            List<GameObject> m = groups[i].GetComponent<GroupItems>().GetModels();
-            for (int j = 0; j < m.Count(); j++)
-            {
-                m[j].GetComponent<DrawOn3DTexture>().ToggleLiveHeatmap(false);
-                m[j].GetComponent<DrawOn3DTexture>().enabled = false;
-            }
-        }
-    }
+    //public void DisableAllLiveHeatmap()
+    //{
+    //    for (int i = 0; i < groups.Count; i++)
+    //    {
+    //        List<GameObject> m = groups[i].GetComponent<GroupItems>().GetModels();
+    //        for (int j = 0; j < m.Count(); j++)
+    //        {
+    //            m[j].GetComponent<DrawOn3DTexture>().ToggleLiveHeatmap(false);
+    //            m[j].GetComponent<DrawOn3DTexture>().enabled = false;
+    //        }
+    //    }
+    //}
 
     public void ToggleAdminMode()
     {

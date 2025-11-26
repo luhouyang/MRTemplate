@@ -6,7 +6,6 @@ using System.Collections.Generic;
 using UnityEngine;
 using Microsoft.MixedReality.Toolkit;
 using Microsoft.MixedReality.Toolkit.Input;
-// using Microsoft.MixedReality.Toolkit.MRTemplate; // Commented out if not needed, or keep if your project uses it
 using Microsoft.MixedReality.Toolkit.Utilities;
 using TMPro;
 using static UnityEngine.Random;
@@ -17,6 +16,7 @@ public class ERCGazeRecorder : MonoBehaviour
     public class GazeData
     {
         public double timestamp;
+        public long timestampTicks;
         public Vector3 headPosition;
         public Vector3 headForward;
         public Vector3 eyeOrigin;
@@ -26,11 +26,7 @@ public class ERCGazeRecorder : MonoBehaviour
         public Vector3 localHitPosition;
     }
 
-    // --- FIX: Reference to the provider ---
-    [Header("References")]
-    [SerializeField]
     private ExtendedEyeGazeDataProvider extendedEyeGazeDataProvider;
-    // --------------------------------------
 
     [Header("Random Saccade Task")]
     [SerializeField]
@@ -53,10 +49,10 @@ public class ERCGazeRecorder : MonoBehaviour
     private bool isContinuous = false;
 
     [SerializeField]
-    private int continuousDivisions = 300; // For 4 segments, 15 seconds each, update rate of 50ms
+    private int continuousDivisions = 300;
 
     [SerializeField]
-    private float continuousTime = 0.0f; // For 4 segments, 15 seconds each, update rate of 50ms
+    private float continuousTime = 0.0f;
 
     [SerializeField]
     private List<GameObject> segmentEndPoints = new List<GameObject>();
@@ -81,6 +77,9 @@ public class ERCGazeRecorder : MonoBehaviour
     [SerializeField]
     private GameObject currentModel;
 
+    [SerializeField]
+    private double targetDuration = 1.5;
+
     public string sessionPath;
     private int numTargetAppeared;
     private double timeInterval;
@@ -93,13 +92,16 @@ public class ERCGazeRecorder : MonoBehaviour
 
     private string saveDir;
     private double startingTime;
+    private DateTime hardwareStartTime;
     private Renderer targetRenderer;
     private Bounds localBounds;
     private StringBuilder pc_sb = new StringBuilder();
 
+    private DateTime lastRecordedTimestamp;
+    private List<ExtendedEyeGazeDataProvider.GazeReading> readingBuffer = new List<ExtendedEyeGazeDataProvider.GazeReading>();
+
     void Start()
     {
-        // --- FIX: Initialize the provider if not assigned in Inspector ---
         if (extendedEyeGazeDataProvider == null)
         {
             extendedEyeGazeDataProvider = FindObjectOfType<ExtendedEyeGazeDataProvider>();
@@ -108,9 +110,9 @@ public class ERCGazeRecorder : MonoBehaviour
                 Debug.LogError("ERCGazeRecorder: Could not find ExtendedEyeGazeDataProvider in the scene!");
             }
         }
-        // ----------------------------------------------------------------
 
-        // deactivate all points
+        lastRecordedTimestamp = DateTime.Now;
+
         for (int i = 0; i < targetList.Count; i++)
         {
             targetList[i].SetActive(false);
@@ -144,10 +146,21 @@ public class ERCGazeRecorder : MonoBehaviour
     {
         if (!isRecording || currentModel == null) return;
 
-        var eyeTarget = ExtendedEyeGazeDataProvider.LookedAtEyeTarget;
-        var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+        int sampleCount = extendedEyeGazeDataProvider.GetWorldSpaceGazeReadingsSince(lastRecordedTimestamp, ExtendedEyeGazeDataProvider.GazeType.Combined, readingBuffer);
 
-        RecordGazeData(gazedObject);
+        if (sampleCount > 0)
+        {
+            foreach (var reading in readingBuffer)
+            {
+                RecordGazeData(reading);
+                lastRecordedTimestamp = reading.Timestamp;
+            }
+        }
+        else if (Application.isEditor)
+        {
+            var singleReading = extendedEyeGazeDataProvider.GetWorldSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, DateTime.Now);
+            RecordGazeData(singleReading);
+        }
 
         if (timeInterval < 0)
         {
@@ -158,11 +171,11 @@ public class ERCGazeRecorder : MonoBehaviour
                     ResetAll();
                     SaveAllData();
 
-                    // ERCGazeController.ToggleRecorded(); // Check if this class exists in your project
+                    ERCGazeController.ToggleRecorded();
                 }
                 else
                 {
-                    timeInterval = Range(100, 151) / 100.0;
+                    timeInterval = targetDuration;
                     currentTarget.SetActive(false);
 
                     if (is3DObject)
@@ -170,7 +183,6 @@ public class ERCGazeRecorder : MonoBehaviour
                         if (numTargetAppeared % numTargetPerFace == 0)
                         {
                             currentFaceIndex = (currentFaceIndex + 1) % targetList3D.Count;
-                            Debug.Log(currentFaceIndex);
                         }
 
                         int nextIndex = Range(0, targetList3D[currentFaceIndex].Count);
@@ -225,10 +237,10 @@ public class ERCGazeRecorder : MonoBehaviour
                     ResetAll();
                     SaveAllData();
 
-                    // ERCGazeController.ToggleRecorded();
+                    ERCGazeController.ToggleRecorded();
                 }
 
-                timeInterval = Range(100, 151) / 100.0;
+                timeInterval = targetDuration;
                 numTargetAppeared++;
             }
 
@@ -244,19 +256,26 @@ public class ERCGazeRecorder : MonoBehaviour
         isRecording = val;
         startingTime = Time.unscaledTimeAsDouble;
 
+        // Reset to MinValue
+        // We will set this to the EXACT timestamp of the first data packet we receive.
+        // This ensures t=0.0 is always the first data point, ignoring timezones.
+        hardwareStartTime = DateTime.MinValue;
+        lastRecordedTimestamp = DateTime.Now;
+
         if (val && currentModel != null)
         {
             numTargetAppeared = 1;
-            timeInterval = Range(100, 151) / 100.0;
+            timeInterval = targetDuration;
 
             saveDir = Path.Combine(Application.persistentDataPath, sessionPath, currentModel.name);
 
             targetRenderer = currentModel.GetComponent<Renderer>();
             localBounds = targetRenderer.localBounds;
             pc_sb = new StringBuilder();
+
             pc_sb.AppendLine("localX,localY,localZ,globalX,globalY,globalZ,localtargetX,localtargetY,localtargetZ,globaltargetX,globaltargetY,globaltargetZ," +
                 "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
-                "eyeDirectionX,eyeDirectionY,eyeDirectionZ,timestamp,targetName");
+                "eyeDirectionX,eyeDirectionY,eyeDirectionZ,timestamp,timestampTicks,targetName");
 
             Debug.Log($"Recording Started. Target Model: {currentModel.name}. Save Path: {saveDir}. Bounds: {localBounds}");
 
@@ -293,69 +312,75 @@ public class ERCGazeRecorder : MonoBehaviour
         }
     }
 
-
-    private void RecordGazeData(GameObject target)
+    private void RecordGazeData(ExtendedEyeGazeDataProvider.GazeReading reading)
     {
-        if (extendedEyeGazeDataProvider == null) return;
-
-        DateTime timestamp = DateTime.Now;
-        var eyeProvider = extendedEyeGazeDataProvider.GetCameraSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, timestamp);
-
         var gaze = new GazeData
         {
-            timestamp = Time.unscaledTimeAsDouble - startingTime,
-            headPosition = CameraCache.Main.transform.position,
-            headForward = CameraCache.Main.transform.forward,
-            eyeOrigin = eyeProvider.EyePosition,
-            eyeDirection = eyeProvider.GazeDirection,
-            hitPosition = eyeProvider.IsValid ? eyeProvider.HitPosition : Vector3.zero,
-            targetName = target != null ? target.name : "null"
+            headPosition = reading.HeadPosition,
+            headForward = reading.HeadForward,
+            eyeOrigin = reading.EyePosition,
+            eyeDirection = reading.GazeDirection,
+            hitPosition = reading.IsValid ? reading.HitPosition : Vector3.zero,
+            targetName = "null"
         };
+
+        // Sync to First Packet
+        if (reading.Timestamp != DateTime.MinValue)
+        {
+            // If this is the first packet of the session, lock the start time
+            if (hardwareStartTime == DateTime.MinValue)
+            {
+                hardwareStartTime = reading.Timestamp;
+            }
+
+            // Calculate relative time from the locked start time
+            gaze.timestamp = (reading.Timestamp - hardwareStartTime).TotalSeconds;
+            gaze.timestampTicks = reading.Timestamp.Ticks;
+        }
+        else
+        {
+            gaze.timestamp = Time.unscaledTimeAsDouble - startingTime;
+            gaze.timestampTicks = DateTime.Now.Ticks;
+        }
+
+        GameObject target = currentModel;
 
         if (target != null)
         {
-            if (target.name == currentModel.name)
+            if (gaze.hitPosition != Vector3.zero)
             {
                 Vector3 tarTrans = (multipleTarget || isContinuous) ? currentTarget.transform.position : Vector3.zero;
                 Vector3 tarTransLocal = target.transform.InverseTransformPoint(tarTrans);
-                gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
-                gaze.localHitPosition = UnapplyUnityTransforms(gaze.localHitPosition, target.transform.eulerAngles);
+
+                Vector3 rawLocalPos = target.transform.InverseTransformPoint(gaze.hitPosition);
+                gaze.localHitPosition = UnapplyUnityTransforms(rawLocalPos, target.transform.eulerAngles);
                 Vector3 pos = gaze.localHitPosition;
 
-                // --- DEBUGGING ---
-                bool boundsCheck = localBounds.Contains(pos);
-                bool nameCheck = gaze.targetName == target.name;
-                bool nullCheck = gaze.targetName != "null";
+                bool boundsCheck = localBounds.Contains(rawLocalPos);
 
-                if (boundsCheck && nameCheck && nullCheck)
+                if (boundsCheck) gaze.targetName = target.name;
+
+                if (boundsCheck)
                 {
+                    // We now use raw World Space values from the provider directly.
+                    // No InverseTransformPoint (which converts to Camera Local Space).
+                    Vector3 eyeOriginGlobal = gaze.eyeOrigin;
+                    Vector3 eyeDirGlobal = gaze.eyeDirection;
+                    Vector3 hitPosGlobal = gaze.hitPosition;
+
                     pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
-                        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+                        $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," + // Global Hit
                         $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
                         $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
                         $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
                         $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
-                        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
-                        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
-                        $"{(gaze.timestamp):F6},{(currentTarget != null ? currentTarget.name : "null")}");
+                        $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," + // Global Eye
+                        $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6}," + // Global Dir
+                        $"{(gaze.timestamp):F9},{gaze.timestampTicks},{(currentTarget != null ? currentTarget.name : "null")}");
                     zSum += pos.z;
                     zNum += 1.0f;
-                    // Debug.Log("SUCCESS: Data recorded for frame.");
-                }
-                else
-                {
-                    Debug.LogWarning($"REJECTED: Bounds: {boundsCheck} ({pos}), NameMatch: {nameCheck} ({gaze.targetName} vs {target.name}), Valid: {nullCheck}");
                 }
             }
-            else
-            {
-                Debug.Log($"MISMATCH: Gaze Object ({target.name}) != Current Model ({currentModel.name})");
-            }
-        }
-        else
-        {
-            // Debug.Log("Target is null (No object looked at)");
-            gaze.localHitPosition = Vector3.zero;
         }
     }
 
@@ -374,7 +399,7 @@ public class ERCGazeRecorder : MonoBehaviour
             }
             SetIsRecording(false);
         }
-        StopAllCoroutines(); // Ensure any ongoing audio recording coroutines are stopped
+        StopAllCoroutines();
     }
 
     public void SaveAllData()
@@ -413,7 +438,6 @@ public class ERCGazeRecorder : MonoBehaviour
 
     private Vector3 UnapplyUnityTransforms(Vector3 originalVector, Vector3 anglesInDegrees)
     {
-        // REVERSE ANY ROTATION ON MODEL
         Quaternion xRotation = Quaternion.AngleAxis(anglesInDegrees.x, Vector3.right);
         Quaternion yRotation = Quaternion.AngleAxis(anglesInDegrees.y, Vector3.up);
         Quaternion zRotation = Quaternion.AngleAxis(anglesInDegrees.z, Vector3.forward);
@@ -422,7 +446,6 @@ public class ERCGazeRecorder : MonoBehaviour
         rotatedVector = yRotation * rotatedVector;
         rotatedVector = zRotation * rotatedVector;
 
-        // NEGATE X TO FLIP THE X-AXIS
         return new Vector3(-rotatedVector.x, rotatedVector.y, rotatedVector.z);
     }
 
@@ -457,18 +480,15 @@ public class ERCGazeRecorder : MonoBehaviour
             sb.Append($"vt {uv.x:F6} {uv.y:F6}\n");
         }
 
-        // Write out faces (with winding order flipped)
         for (int i = 0; i < tempMesh.subMeshCount; i++)
         {
             int[] triangles = tempMesh.GetTriangles(i);
             for (int j = 0; j < triangles.Length; j += 3)
             {
-                // Swap first and third index to reverse triangle winding
                 int temp = triangles[j];
                 triangles[j] = triangles[j + 2];
                 triangles[j + 2] = temp;
 
-                // Output face
                 sb.Append($"f {triangles[j] + 1}/{triangles[j] + 1}/{triangles[j] + 1} " +
                             $"{triangles[j + 1] + 1}/{triangles[j + 1] + 1}/{triangles[j + 1] + 1} " +
                             $"{triangles[j + 2] + 1}/{triangles[j + 2] + 1}/{triangles[j + 2] + 1}\n");
