@@ -1,6 +1,7 @@
 using Microsoft.MixedReality.Toolkit.Input;
 using Microsoft.MixedReality.Toolkit.MRTemplate;
 using Microsoft.MixedReality.Toolkit.Utilities;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -42,7 +43,7 @@ namespace MuseumModel
             {
                 Directory.CreateDirectory(saveDir);
             }
-            dataModule = new DataModule(saveDir, Time.unscaledTimeAsDouble, gameObject, gameObject.GetComponent<MeshFilter>());
+            dataModule = new DataModule(saveDir, Time.unscaledTimeAsDouble, gameObject, gameObject.GetComponent<MeshFilter>(), DateTime.MinValue);
         }
 
         public void SaveData()

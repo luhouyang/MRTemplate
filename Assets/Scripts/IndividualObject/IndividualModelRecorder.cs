@@ -1,6 +1,7 @@
 ﻿using Microsoft.MixedReality.Toolkit.Input;
 using Microsoft.MixedReality.Toolkit.MRTemplate;
 using Microsoft.MixedReality.Toolkit.Utilities;
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -96,9 +97,26 @@ namespace IndividualModel
         public string sessionPath;
         public DataModule dataModule;
 
+        // Eye tracker sampling rate
+        private ExtendedEyeGazeDataProvider extendedEyeGazeDataProvider;
+        public bool highSamplingRate = true;
+        private DateTime lastRecordedTimestamp;
+        private List<ExtendedEyeGazeDataProvider.GazeReading> readingBuffer = new List<ExtendedEyeGazeDataProvider.GazeReading>();
+
         // Start is called before the first frame update
         void Start()
         {
+            if (extendedEyeGazeDataProvider == null)
+            {
+                extendedEyeGazeDataProvider = FindObjectOfType<ExtendedEyeGazeDataProvider>();
+                if (extendedEyeGazeDataProvider == null)
+                {
+                    Debug.LogError("ERCGazeRecorder: Could not find ExtendedEyeGazeDataProvider in the scene!");
+                }
+            }
+
+            lastRecordedTimestamp = DateTime.Now;
+
             heatmapSource = GetComponent<DrawOn3DTexture>();
 
             GameObject audioObject = new GameObject("AudioRecorder");
@@ -164,7 +182,7 @@ namespace IndividualModel
                 {
                     Directory.CreateDirectory(saveDir);
                 }
-                dataModule = new DataModule(saveDir, Time.unscaledTimeAsDouble, gameObject, gameObject.GetComponent<MeshFilter>());
+                dataModule = new DataModule(saveDir, Time.unscaledTimeAsDouble, gameObject, gameObject.GetComponent<MeshFilter>(), DateTime.MinValue);
             }
             else
             {
@@ -197,6 +215,44 @@ namespace IndividualModel
             markerPrefabs = mps;
         }
 
+        private DataModule.GazeData RecordGaze()
+        {
+            DataModule.GazeData gaze = new DataModule.GazeData();
+            if (highSamplingRate)
+            {
+                // 90Hz = ~0.011111s per sample.
+                // Estimate how many samples accumulated since last frame based on Time.unscaledDeltaTime
+                // Add +2 for safety margin (jitter buffer)
+                float expectedSamples = Time.unscaledDeltaTime * 90.0f;
+                int dynamicLimit = Mathf.CeilToInt(expectedSamples) + 20;
+
+                int sampleCount = extendedEyeGazeDataProvider.GetWorldSpaceGazeReadingsSince(lastRecordedTimestamp, ExtendedEyeGazeDataProvider.GazeType.Combined, readingBuffer, dynamicLimit);
+
+                if (sampleCount > 0)
+                {
+                    foreach (var reading in readingBuffer)
+                    {
+                        gaze = dataModule.RecordHighSampleGazeData(reading, gameObject);
+                        lastRecordedTimestamp = reading.Timestamp;
+                    }
+                }
+                else if (Application.isEditor)
+                {
+                    var singleReading = extendedEyeGazeDataProvider.GetWorldSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, DateTime.Now);
+                    gaze = dataModule.RecordHighSampleGazeData(singleReading, gameObject);
+                }
+            }
+            else
+            {
+                var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+                var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+                gaze = dataModule.RecordGazeData(gazedObject);
+            }
+
+            return gaze;
+        }
+
         #region EXPERIMENT FLOWS
         private void EyeGazeAndQNAThenVoice()
         {
@@ -213,12 +269,12 @@ namespace IndividualModel
                 timer -= Time.deltaTime;
 
                 // Pass the gazed voxel ID to RecordGazeData
-                Vector3[] gaze = dataModule.RecordGazeData(gazedObject);
-                if (gaze[0] != Vector3.zero)
+                DataModule.GazeData gaze = RecordGaze();
+                if (gaze.localHitPosition != Vector3.zero)
                 {
-                    lastLocalHitPosition = gaze[0];
-                    globalHitPosition = gaze[1];
-                    hitNormal = gaze[2];
+                    lastLocalHitPosition = gaze.localHitPosition;
+                    globalHitPosition = gaze.hitPosition;
+                    hitNormal = gaze.eyeDirection;
                 }
 
                 promptObject.GetComponent<TextMeshPro>().SetText($"VIEWING TIME: {(timer - recordVoiceDuration):F1}");
@@ -270,7 +326,7 @@ namespace IndividualModel
 
                 dataModule.ExportPointCloud();
                 dataModule.ExportQuestionnaireAnswers();
-                dataModule.Export3DModel(gameObject);
+                //dataModule.Export3DModel(gameObject);
                 StopAudioRecording();
                 dataModule.SaveFileList();
                 SetIsRecording(false);
@@ -294,15 +350,15 @@ namespace IndividualModel
                 timer -= Time.deltaTime;
 
                 // Pass the gazed voxel ID to RecordGazeData
-                Vector3[] gaze = dataModule.RecordGazeData(gazedObject);
-                if (gaze[0] != Vector3.zero)
+                DataModule.GazeData gaze = RecordGaze();
+                if (gaze.localHitPosition != Vector3.zero)
                 {
-                    lastLocalHitPosition = gaze[0];
-                    globalHitPosition = gaze[1];
-                    lastHeadPosition = gaze[2];
-                    lastHeadForward = gaze[3];
-                    lastEyeOrigin = gaze[4];
-                    hitNormal = gaze[5];
+                    lastLocalHitPosition = gaze.localHitPosition;
+                    globalHitPosition = gaze.hitPosition;
+                    lastHeadPosition = gaze.headPosition;
+                    lastHeadForward = gaze.headForward;
+                    lastEyeOrigin = gaze.eyeOrigin;
+                    hitNormal = gaze.eyeDirection;
                 }
 
                 promptObject.GetComponent<TextMeshPro>().SetText($"VIEWING TIME: {(timer - recordVoiceDuration):F1}");
@@ -316,7 +372,7 @@ namespace IndividualModel
 
                 dataModule.ExportPointCloud();
                 dataModule.ExportQuestionnaireAnswers();
-                dataModule.Export3DModel(gameObject);
+                //dataModule.Export3DModel(gameObject);
                 SetIsRecording(false);
 
                 IndividualModelController.ToggleRecorded();
@@ -370,6 +426,12 @@ namespace IndividualModel
 
             if (answerKey != "")
             {
+                if (!isPlayingAudio)
+                {
+                    StartCoroutine(IndividualModelController.PlayMajorFifthInterval(1.0f));
+                    isPlayingAudio = true;
+                }
+
                 dataModule.OnQuestionnaireAnswered(answerChoices[answerKey], lastLocalHitPosition, globalHitPosition, lastHeadPosition, lastHeadForward, lastEyeOrigin, hitNormal);
                 if (gameObject.GetComponent<DrawOn3DTexture>().enabled == true)
                 {

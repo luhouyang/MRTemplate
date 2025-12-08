@@ -7,8 +7,10 @@ using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using TMPro;
+using Unity.VisualScripting;
 using UnityEngine;
 using UnityEngine.SocialPlatforms;
+using static UnityEngine.GraphicsBuffer;
 
 // TODO: Add continuous data saving, to reduce lag at the end of sessions
 namespace Microsoft.MixedReality.Toolkit.MRTemplate
@@ -69,12 +71,16 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         // Heatmap / Model
         private MeshFilter meshFilter;
 
-        public DataModule(string saveDir, double startingTime, GameObject modelGameObject, MeshFilter meshFilter)
+        // Eye tracker high samplinh rate
+        private DateTime hardwareStartTime;
+
+        public DataModule(string saveDir, double startingTime, GameObject modelGameObject, MeshFilter meshFilter, DateTime hardwareStartTime)
         {
             this.saveDir = saveDir;
             this.startingTime = startingTime;
             this.modelGameObject = modelGameObject;
             this.meshFilter = meshFilter;
+            this.hardwareStartTime = hardwareStartTime;
 
             // Get Renderer & localbound
             targetRenderer = modelGameObject.GetComponent<Renderer>();
@@ -86,59 +92,110 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
         }
 
         // Record Eye Gaze Data
-        public Vector3[] RecordGazeData(GameObject target)
+        public GazeData RecordGazeData(GameObject target)
         {
             // GET EYE GAZE PROVIDER
             var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
-            if (eyeProvider == null) return new Vector3[] { Vector3.zero, Vector3.zero, Vector3.zero };
+            if (eyeProvider == null) return new GazeData();
 
-            //// CREATE NEW GAZE DATA
-            //var gaze = new GazeData
-            //{
-            //    timestamp = Time.unscaledTimeAsDouble - startingTime,
-            //    headPosition = CameraCache.Main.transform.position,
-            //    headForward = CameraCache.Main.transform.forward,
-            //    eyeOrigin = eyeProvider.GazeOrigin,
-            //    eyeDirection = eyeProvider.GazeDirection,
-            //    hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
-            //    targetName = target != null ? target.name : "null",
-            //};
-
-            Vector3 hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero;
-            Vector3 localHitPosition;
-
-            Vector3 headPosition = CameraCache.Main.transform.position;
-            Vector3 headForward = CameraCache.Main.transform.forward;
-            Vector3 eyeOrigin = eyeProvider.GazeOrigin;
-            Vector3 eyeDirection = eyeProvider.GazeDirection;
+            // CREATE NEW GAZE DATA
+            var gaze = new GazeData
+            {
+                timestamp = Time.unscaledTimeAsDouble - startingTime,
+                headPosition = CameraCache.Main.transform.position,
+                headForward = CameraCache.Main.transform.forward,
+                eyeOrigin = eyeProvider.GazeOrigin,
+                eyeDirection = eyeProvider.GazeDirection,
+                hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
+                targetName = target != null ? target.name : "null",
+            };
 
             // CHECK IF GAZE HIT ON SELECTED MODEL
             if (target != null && target.name == modelGameObject.name)
             {
                 // CONVERT GAZE HIT FROM WORLD COORDINATE TO LOCAL COORDINATE
-                localHitPosition = target.transform.InverseTransformPoint(hitPosition);
+                gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
 
                 // CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL
-                if (localBounds.Contains(localHitPosition))
+                if (localBounds.Contains(gaze.localHitPosition))
                 {
                     // REVERT TRANSFORMS WHEN IMPORTING MODEL
-                    localHitPosition = UnapplyUnityTransforms(localHitPosition, target.transform.eulerAngles);
+                    gaze.localHitPosition = UnapplyUnityTransforms(gaze.localHitPosition, target.transform.eulerAngles);
 
                     // ADD GAZE DATA
-                    pointcloudSB.AppendLine($"{localHitPosition.x:F6},{localHitPosition.y:F6},{localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6}," +
-                        $"{hitPosition.x:F6},{hitPosition.y:F6},{hitPosition.z:F6}," +
-                        $"{headPosition.x:F6},{headPosition.y:F6},{headPosition.z:F6}," +
-                        $"{headForward.x:F6},{headForward.y:F6},{headForward.z:F6}," +
-                        $"{eyeOrigin.x:F6},{eyeOrigin.y:F6},{eyeOrigin.z:F6}," +
-                        $"{eyeDirection.x:F6},{eyeDirection.y:F6},{eyeDirection.z:F6}");
+                    pointcloudSB.AppendLine($"{gaze.localHitPosition.x:F6},{gaze.localHitPosition.y:F6},{gaze.localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6}," +
+                        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+                        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+                        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+                        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
+                        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}");
                 }
             }
             else
             {
-                localHitPosition = Vector3.zero;
+                gaze.localHitPosition = Vector3.zero;
             }
 
-            return new Vector3[] { localHitPosition, hitPosition, headPosition, headForward, eyeOrigin, eyeDirection };
+            return gaze;
+        }
+
+        public GazeData RecordHighSampleGazeData(ExtendedEyeGazeDataProvider.GazeReading reading, GameObject target)
+        {
+            var gaze = new GazeData
+            {
+                headPosition = reading.HeadPosition,
+                headForward = reading.HeadForward,
+                eyeOrigin = reading.EyePosition,
+                eyeDirection = reading.GazeDirection,
+                hitPosition = reading.IsValid ? reading.HitPosition : Vector3.zero,
+                targetName = target != null ? target.name : "null",
+            };
+
+            // Sync to First Packet
+            if (reading.Timestamp != DateTime.MinValue)
+            {
+                // If this is the first packet of the session, lock the start time
+                if (hardwareStartTime == DateTime.MinValue)
+                {
+                    hardwareStartTime = reading.Timestamp;
+                }
+
+                // Calculate relative time from the locked start time
+                gaze.timestamp = (reading.Timestamp - hardwareStartTime).TotalSeconds;
+            }
+            else
+            {
+                gaze.timestamp = Time.unscaledTimeAsDouble - startingTime;
+            }
+
+            if (gaze.hitPosition != Vector3.zero)
+            {
+                Vector3 rawLocalPos = target.transform.InverseTransformPoint(gaze.hitPosition);
+                gaze.localHitPosition = UnapplyUnityTransforms(rawLocalPos, target.transform.eulerAngles);
+                Vector3 pos = gaze.localHitPosition;
+
+                bool boundsCheck = localBounds.Contains(rawLocalPos);
+
+                if (boundsCheck) gaze.targetName = target.name;
+
+                if (boundsCheck)
+                {
+                    // We now use raw World Space values from the provider directly.
+                    // No InverseTransformPoint (which converts to Camera Local Space).
+                    Vector3 eyeOriginGlobal = gaze.eyeOrigin;
+                    Vector3 eyeDirGlobal = gaze.eyeDirection;
+                    Vector3 hitPosGlobal = gaze.hitPosition;
+
+                    pointcloudSB.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6},{(gaze.timestamp):F9}," +
+                        $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," + // Global Hit
+                        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+                        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+                        $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," + // Global Eye
+                        $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6},");
+                }
+            }
+
+            return gaze;
         }
 
         #region AUDIO

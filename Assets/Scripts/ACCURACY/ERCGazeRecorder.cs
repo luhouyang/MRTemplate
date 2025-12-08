@@ -27,6 +27,7 @@ public class ERCGazeRecorder : MonoBehaviour
     }
 
     private ExtendedEyeGazeDataProvider extendedEyeGazeDataProvider;
+    public bool highSampleRate = true;
 
     [Header("Random Saccade Task")]
     [SerializeField]
@@ -146,20 +147,38 @@ public class ERCGazeRecorder : MonoBehaviour
     {
         if (!isRecording || currentModel == null) return;
 
-        int sampleCount = extendedEyeGazeDataProvider.GetWorldSpaceGazeReadingsSince(lastRecordedTimestamp, ExtendedEyeGazeDataProvider.GazeType.Combined, readingBuffer);
+        if (highSampleRate)
+        {
+            // 90Hz = ~0.011111s per sample.
+            // Estimate how many samples accumulated since last frame based on Time.unscaledDeltaTime
+            // Add +2 for safety margin of ~22ms
+            float expectedSamples = Time.unscaledDeltaTime * 90.0f;
+            int dynamicLimit = Mathf.CeilToInt(expectedSamples) + 20;
 
-        if (sampleCount > 0)
-        {
-            foreach (var reading in readingBuffer)
+            int sampleCount = extendedEyeGazeDataProvider.GetWorldSpaceGazeReadingsSince(lastRecordedTimestamp, ExtendedEyeGazeDataProvider.GazeType.Combined, readingBuffer, dynamicLimit);
+
+            if (sampleCount > 0)
             {
-                RecordGazeData(reading);
-                lastRecordedTimestamp = reading.Timestamp;
+                foreach (var reading in readingBuffer)
+                {
+                    RecordHighSampleGazeData(reading);
+                    lastRecordedTimestamp = reading.Timestamp;
+                }
             }
+            else if (Application.isEditor)
+            {
+                var singleReading = extendedEyeGazeDataProvider.GetWorldSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, DateTime.Now);
+                RecordHighSampleGazeData(singleReading);
+            }
+            //Debug.Log("HIGH SAMPLING RATE");
         }
-        else if (Application.isEditor)
+        else
         {
-            var singleReading = extendedEyeGazeDataProvider.GetWorldSpaceGazeReading(ExtendedEyeGazeDataProvider.GazeType.Combined, DateTime.Now);
-            RecordGazeData(singleReading);
+            var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+            var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+            RecordGazeData(gazedObject);
+            //Debug.Log("NORMAL SAMPLING RATE");
         }
 
         if (timeInterval < 0)
@@ -254,13 +273,6 @@ public class ERCGazeRecorder : MonoBehaviour
     public void SetIsRecording(bool val)
     {
         isRecording = val;
-        startingTime = Time.unscaledTimeAsDouble;
-
-        // Reset to MinValue
-        // We will set this to the EXACT timestamp of the first data packet we receive.
-        // This ensures t=0.0 is always the first data point, ignoring timezones.
-        hardwareStartTime = DateTime.MinValue;
-        lastRecordedTimestamp = DateTime.Now;
 
         if (val && currentModel != null)
         {
@@ -277,7 +289,7 @@ public class ERCGazeRecorder : MonoBehaviour
                 "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
                 "eyeDirectionX,eyeDirectionY,eyeDirectionZ,timestamp,timestampTicks,targetName");
 
-            Debug.Log($"Recording Started. Target Model: {currentModel.name}. Save Path: {saveDir}. Bounds: {localBounds}");
+            //Debug.Log($"Recording Started. Target Model: {currentModel.name}. Save Path: {saveDir}. Bounds: {localBounds}");
 
             if (!Directory.Exists(saveDir))
             {
@@ -310,9 +322,71 @@ public class ERCGazeRecorder : MonoBehaviour
                 currentTarget.SetActive(true);
             }
         }
+
+        startingTime = Time.unscaledTimeAsDouble;
+
+        // Reset to MinValue
+        // We will set this to the EXACT timestamp of the first data packet we receive.
+        // This ensures t=0.0 is always the first data point, ignoring timezones.
+        hardwareStartTime = DateTime.MinValue;
+        lastRecordedTimestamp = DateTime.Now;
     }
 
-    private void RecordGazeData(ExtendedEyeGazeDataProvider.GazeReading reading)
+    private void RecordGazeData(GameObject target)
+    {
+        var eyeProvider = CoreServices.InputSystem?.EyeGazeProvider;
+        if (eyeProvider == null) return;
+
+        var gaze = new GazeData
+        {
+            timestamp = Time.unscaledTimeAsDouble - startingTime,
+            headPosition = CameraCache.Main.transform.position,
+            headForward = CameraCache.Main.transform.forward,
+            eyeOrigin = eyeProvider.GazeOrigin,
+            eyeDirection = eyeProvider.GazeDirection,
+            hitPosition = eyeProvider.IsEyeTrackingEnabledAndValid ? eyeProvider.HitPosition : Vector3.zero,
+            targetName = target != null ? target.name : "null"
+        };
+
+        if (target != null && target.name == currentModel.name)
+        {
+            Vector3 tarTrans = (multipleTarget || isContinuous) ? currentTarget.transform.position : Vector3.zero;
+            Vector3 tarTransLocal = target.transform.InverseTransformPoint(tarTrans);
+            gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
+            Vector3 pos = gaze.localHitPosition;
+            //if (localBounds.Contains(pos) && gaze.targetName == target.name && gaze.targetName != "null")
+            //{
+            //    pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
+            //        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+            //        $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
+            //        $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
+            //        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+            //        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+            //        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
+            //        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
+            //        $"{(gaze.timestamp - startingTime):F6},{(currentTarget != null ? currentTarget.name : "null")}");
+            //    zSum += pos.z;
+            //    zNum += 1.0f;
+            //}
+            pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
+                    $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+                    $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
+                    $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
+                    $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+                    $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+                    $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
+                    $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
+                    $"{(gaze.timestamp - startingTime):F6},{(currentTarget != null ? currentTarget.name : "null")}");
+            zSum += pos.z;
+            zNum += 1.0f;
+        }
+        else
+        {
+            gaze.localHitPosition = Vector3.zero;
+        }
+    }
+
+    private void RecordHighSampleGazeData(ExtendedEyeGazeDataProvider.GazeReading reading)
     {
         var gaze = new GazeData
         {
@@ -356,30 +430,32 @@ public class ERCGazeRecorder : MonoBehaviour
                 gaze.localHitPosition = UnapplyUnityTransforms(rawLocalPos, target.transform.eulerAngles);
                 Vector3 pos = gaze.localHitPosition;
 
-                bool boundsCheck = localBounds.Contains(rawLocalPos);
+                //bool boundsCheck = localBounds.Contains(rawLocalPos);
 
-                if (boundsCheck) gaze.targetName = target.name;
+                //if (boundsCheck) gaze.targetName = target.name;
 
-                if (boundsCheck)
-                {
-                    // We now use raw World Space values from the provider directly.
-                    // No InverseTransformPoint (which converts to Camera Local Space).
-                    Vector3 eyeOriginGlobal = gaze.eyeOrigin;
-                    Vector3 eyeDirGlobal = gaze.eyeDirection;
-                    Vector3 hitPosGlobal = gaze.hitPosition;
+                //if (boundsCheck)
+                //{
+                //    // We now use raw World Space values from the provider directly.
+                //    // No InverseTransformPoint (which converts to Camera Local Space).
+                    
+                //}
 
-                    pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
-                        $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," + // Global Hit
-                        $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
-                        $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
-                        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
-                        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
-                        $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," + // Global Eye
-                        $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6}," + // Global Dir
-                        $"{(gaze.timestamp):F9},{gaze.timestampTicks},{(currentTarget != null ? currentTarget.name : "null")}");
-                    zSum += pos.z;
-                    zNum += 1.0f;
-                }
+                Vector3 eyeOriginGlobal = gaze.eyeOrigin;
+                Vector3 eyeDirGlobal = gaze.eyeDirection;
+                Vector3 hitPosGlobal = gaze.hitPosition;
+
+                pc_sb.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6}," +
+                    $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," + // Global Hit
+                    $"{tarTransLocal.x:F6},{tarTransLocal.y:F6},{tarTransLocal.z:F6}," +
+                    $"{tarTrans.x:F6},{tarTrans.y:F6},{tarTrans.z:F6}," +
+                    $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+                    $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+                    $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," + // Global Eye
+                    $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6}," + // Global Dir
+                    $"{(gaze.timestamp):F9},{gaze.timestampTicks},{(currentTarget != null ? currentTarget.name : "null")}");
+                zSum += pos.z;
+                zNum += 1.0f;
             }
         }
     }
@@ -400,14 +476,18 @@ public class ERCGazeRecorder : MonoBehaviour
             SetIsRecording(false);
         }
         StopAllCoroutines();
+        readingBuffer.Clear();
     }
 
     public void SaveAllData()
     {
+        StopAllCoroutines();
+        readingBuffer.Clear();
         ExportPointCloud(currentModel);
-        Export3DModel(currentModel);
+        //Export3DModel(currentModel);
         SaveTargetCoordinates("target.csv");
-        Debug.Log("SAVED DATA AT: " + saveDir);
+
+        //Debug.Log("SAVED DATA AT: " + saveDir);
     }
 
     public void ExportPointCloud(GameObject target)

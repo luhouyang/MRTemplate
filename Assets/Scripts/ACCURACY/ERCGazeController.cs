@@ -17,6 +17,9 @@ public class ERCGazeController : MonoBehaviour
     [SerializeField] private GameObject adminOnUI;
     [SerializeField] private GameObject adminOffUI;
 
+    [SerializeField] private GameObject highSampleOnUI;
+    [SerializeField] private GameObject highSampleOffUI;
+
     [SerializeField] private GameObject startButton;
 
     [Header("Marker Spawning Settings")]
@@ -33,6 +36,7 @@ public class ERCGazeController : MonoBehaviour
 
     // recording state
     private bool admin = false;
+    private bool highSampleRate = true;
     public static bool recorded = false;
 
     private int groupIndex = 0;
@@ -50,7 +54,8 @@ public class ERCGazeController : MonoBehaviour
                 if (modelRecorder != null)
                 {
                     models[j].GetComponent<ERCGazeRecorder>().sessionPath = sessionPath;
-                    //models[j].GetComponent<EyeTrackingTarget>().enabled = false;
+                    models[j].GetComponent<EyeTrackingTarget>().enabled = false;
+                    models[j].GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
                     models[j].SetActive(false);
                 }
             }
@@ -84,8 +89,16 @@ public class ERCGazeController : MonoBehaviour
         if (!currentModel.GetComponent<ERCGazeRecorder>().isRecording && !recorded)
         {
             startButton.SetActive(false);
+            if (highSampleRate)
+            {
+                currentModel.GetComponent<ExtendedEyeGazeDataProvider>().enabled = true;
+            }
+            else
+            {
+                currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
+            }
+            currentModel.GetComponent<ERCGazeRecorder>().highSampleRate = highSampleRate;
             currentModel.GetComponent<ERCGazeRecorder>().SetIsRecording(true);
-            //currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
         }
     }
 
@@ -95,7 +108,13 @@ public class ERCGazeController : MonoBehaviour
         {
             currentModel.GetComponent<ERCGazeRecorder>().SetIsRecording(false);
             currentModel.GetComponent<ERCGazeRecorder>().SaveAllData();
-            //currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
+            if (highSampleRate)
+            {
+                currentModel.GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
+            } else
+            {
+                currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
+            }
         }
     }
 
@@ -147,7 +166,7 @@ public class ERCGazeController : MonoBehaviour
                 LoadModel();
             }
 
-            Debug.Log("Loading " + models[currentModelIndex].name);
+            //Debug.Log("Loading " + models[currentModelIndex].name);
         }
     }
 
@@ -167,7 +186,7 @@ public class ERCGazeController : MonoBehaviour
             }
 
             recorded = false;
-            Debug.Log("Loading " + models[currentModelIndex].name);
+            //Debug.Log("Loading " + models[currentModelIndex].name);
         }
     }
     #endregion
@@ -214,6 +233,48 @@ public class ERCGazeController : MonoBehaviour
     //        }
     //    }
     //}
+
+    public void ToggleHighSampleMode()
+    {
+        highSampleRate = !highSampleRate;
+
+        if (highSampleRate)
+        {
+            highSampleOnUI.SetActive(true);
+            highSampleOffUI.SetActive(false);
+
+            for (int i = 0; i < groups.Count; i++)
+            {
+                models = groups[i].GetComponent<GroupItems>().GetModels();
+                for (int j = 0; j < models.Count; j++)
+                {
+                    ERCGazeRecorder modelRecorder = models[j].GetComponent<ERCGazeRecorder>();
+                    if (modelRecorder != null)
+                    {
+                        models[j].GetComponent<EyeTrackingTarget>().enabled = false;
+                    }
+                }
+            }
+        }
+        else
+        {
+            highSampleOnUI.SetActive(false);
+            highSampleOffUI.SetActive(true);
+
+            for (int i = 0; i < groups.Count; i++)
+            {
+                models = groups[i].GetComponent<GroupItems>().GetModels();
+                for (int j = 0; j < models.Count; j++)
+                {
+                    ERCGazeRecorder modelRecorder = models[j].GetComponent<ERCGazeRecorder>();
+                    if (modelRecorder != null)
+                    {
+                        models[j].GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
+                    }
+                }
+            }
+        }
+    }
 
     public void ToggleAdminMode()
     {

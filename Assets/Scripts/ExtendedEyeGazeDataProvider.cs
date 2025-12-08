@@ -82,7 +82,7 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
 
         _attachedCollider = GetComponent<Collider>();
 
-        Debug.Log("Initializing ExtendedEyeTracker");
+        //Debug.Log("Initializing ExtendedEyeTracker");
 #if ENABLE_WINMD_SUPPORT
         _gazePermissionEnabled = await AskForEyePosePermission();
 #else
@@ -91,7 +91,7 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
 
         if (!_gazePermissionEnabled)
         {
-            Debug.LogError("Gaze is disabled");
+            //Debug.LogError("Gaze is disabled");
             return;
         }
 
@@ -135,7 +135,7 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
         }
     }
 
-    public int GetWorldSpaceGazeReadingsSince(DateTime sinceTimestamp, GazeType gazeType, List<GazeReading> bufferToFill)
+    public int GetWorldSpaceGazeReadingsSince(DateTime sinceTimestamp, GazeType gazeType, List<GazeReading> bufferToFill, int maxSamplesLimit = 200)
     {
         bufferToFill.Clear();
 
@@ -162,6 +162,7 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
             {
                 bufferToFill.Add(processedReading);
                 itrTimestamp = reading.Timestamp;
+                itrTimestamp = itrTimestamp.AddTicks(100000);
                 count++;
             }
             else
@@ -169,7 +170,8 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
                 itrTimestamp = reading.Timestamp;
             }
 
-            if (count > 10) break;
+            // DYNAMIC LIMIT CHECK
+            if (count >= maxSamplesLimit) break;
         }
 
         return count;
@@ -286,12 +288,12 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
     private void _watcher_EyeGazeTrackerRemoved(object sender, EyeGazeTracker e)
     {
         _eyeGazeTracker = null;
-        Debug.Log("EyeGazeTracker removed");
+        //Debug.Log("EyeGazeTracker removed");
     }
 
     private async void _watcher_EyeGazeTrackerAdded(object sender, EyeGazeTracker e)
     {
-        Debug.Log("EyeGazeTracker added");
+        //Debug.Log("EyeGazeTracker added");
         try
         {
             await e.OpenAsync(true);
@@ -310,7 +312,7 @@ public class ExtendedEyeGazeDataProvider : MonoBehaviour
                 }
 
                 _eyeGazeTracker.SetTargetFrameRate(highestRate);
-                Debug.Log($"ExtendedEyeGazeDataProvider: Set Target Frame Rate to {highestRate.FramesPerSecond} FPS");
+                //Debug.Log($"ExtendedEyeGazeDataProvider: Set Target Frame Rate to {highestRate.FramesPerSecond} FPS");
             }
 
             _eyeGazeTrackerNode = SpatialGraphNode.FromDynamicNodeId(e.TrackerSpaceLocatorNodeId);

@@ -22,6 +22,7 @@ namespace IndividualModel
         [SerializeField] private GameObject adminButton;
         [SerializeField] private GameObject startButton;
         [SerializeField] private GameObject heatmapButton;
+        [SerializeField] private GameObject highSamplingRateButton;
 
         [Header("UI Settings")]
         [SerializeField] private GameObject promptObject;
@@ -38,6 +39,9 @@ namespace IndividualModel
         [Tooltip("An array of 3D marker prefabs to be spawned. Assign your marker objects here in the Inspector.")]
         [SerializeField] private bool enableLiveHeatmapOnStart = false;
         [SerializeField] private GameObject[] markerPrefabs;
+
+        [Header("Eye Tracker Sampling Rate")]
+        [SerializeField] private bool highSamplingRate = true;
 
         // Flow control variables
         private GameObject group;
@@ -79,6 +83,7 @@ namespace IndividualModel
                         modelRecorder.QNAPrompt = QNAPrompt;
                         modelRecorder.SetMarkerPrefabs(markerPrefabs);
                         models[j].GetComponent<EyeTrackingTarget>().enabled = false;
+                        models[j].GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
                         models[j].SetActive(false);
                     }
                 }
@@ -87,6 +92,8 @@ namespace IndividualModel
             // Set live heatmap initial state (can be toggled from button on ControlPanel)
             heatmapState = enableLiveHeatmapOnStart;
             SetAllLiveHeatmap(enableLiveHeatmapOnStart);
+
+            SetHighSamplingRate(highSamplingRate);
 
             promptObject.SetActive(false);
             QNAPrompt.SetActive(true);
@@ -186,13 +193,22 @@ namespace IndividualModel
 
         public void StartRecording()
         {
-            if (!currentModel.GetComponent<IndividualModelRecorder>().isRecording && !recorded && !isAskingLanguage)
+            IndividualModelRecorder currentRecorder = currentModel.GetComponent<IndividualModelRecorder>();
+            if (!currentRecorder.isRecording && !recorded && !isAskingLanguage)
             {
                 groupPromptObject.SetActive(false);
                 QNAPrompt.SetActive(true);
                 startButton.SetActive(false);
-                currentModel.GetComponent<IndividualModelRecorder>().SetIsRecording(true);
-                currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
+                currentRecorder.highSamplingRate = highSamplingRate;
+                if (highSamplingRate)
+                {
+                    currentModel.GetComponent<ExtendedEyeGazeDataProvider>().enabled = true;
+                } 
+                else
+                {
+                    currentModel.GetComponent<EyeTrackingTarget>().enabled = true;
+                }
+                currentRecorder.SetIsRecording(true);
             }
         }
 
@@ -205,7 +221,14 @@ namespace IndividualModel
                 //currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportPointCloud();
                 //currentModel.GetComponent<IndividualModelRecorder>().dataModule.Export3DModel(currentModel);
                 //currentModel.GetComponent<IndividualModelRecorder>().dataModule.ExportQuestionnaireAnswers();
-                currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
+                if (highSamplingRate)
+                {
+                    currentModel.GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
+                }
+                else
+                {
+                    currentModel.GetComponent<EyeTrackingTarget>().enabled = false;
+                }
             }
         }
 
@@ -332,6 +355,49 @@ namespace IndividualModel
         #endregion
 
         #region Admin Panel Toggles
+        public void SetHighSamplingRate(bool val)
+        {
+            highSamplingRateButton.GetComponent<ButtonUI>().setIsPressed(val);
+
+            if (highSamplingRate)
+            {
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    models = groups[i].GetComponent<GroupItems>().GetModels();
+                    for (int j = 0; j < models.Count; j++)
+                    {
+                        IndividualModelRecorder modelRecorder = models[j].GetComponent<IndividualModelRecorder>();
+                        if (modelRecorder != null)
+                        {
+                            models[j].GetComponent<EyeTrackingTarget>().enabled = false;                            
+                        }
+                    }
+                }
+            }
+            else
+            {
+                for (int i = 0; i < groups.Count; i++)
+                {
+                    models = groups[i].GetComponent<GroupItems>().GetModels();
+                    for (int j = 0; j < models.Count; j++)
+                    {
+                        IndividualModelRecorder modelRecorder = models[j].GetComponent<IndividualModelRecorder>();
+                        if (modelRecorder != null)
+                        {
+                            models[j].GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
+                        }
+                    }
+                }
+            }
+        }
+
+        public void ToggleHighSamplingRate()
+        {
+            highSamplingRate = !highSamplingRate;
+
+            SetHighSamplingRate(highSamplingRate);
+        }
+
         public void SetAllLiveHeatmap(bool val)
         {
             heatmapButton.GetComponent<ButtonUI>().setIsPressed(val);
