@@ -892,19 +892,20 @@ MonoBehaviour:
   startButton: {fileID: 402648594}
   heatmapButton: {fileID: 950018286}
   highSamplingRateButton: {fileID: 1499929372}
+  globalExperimentNumber: 3
   promptObject: {fileID: 972838985}
   groupPromptObject: {fileID: 502289294}
   QNAPrompt: {fileID: 1820692633}
   languageQNA: {fileID: 3003334015865490606, guid: 7be246b166dcd5f4a8e08314f85904bd, type: 3}
   askLanguage: 0
-  enableLiveHeatmapOnStart: 0
+  enableLiveHeatmapOnStart: 1
   markerPrefabs:
   - {fileID: 5633361458767155208, guid: 10c731fb00554054a8b5ade1d449f614, type: 3}
   - {fileID: 5565538857692257015, guid: 43504c48a138b4c4b8ceb699f934c03b, type: 3}
   - {fileID: 8118896106304649388, guid: 9bf565296b5068843adce667b2d9c9bb, type: 3}
   - {fileID: 7055515552279567787, guid: a13e8c152bff8434ba41da3307e7a8d4, type: 3}
   - {fileID: 8742322480240662461, guid: ba9559ce70358894581a7ea011d2102c, type: 3}
-  highSamplingRate: 1
+  highSamplingRate: 0
 --- !u!1 &373623943
 GameObject:
   m_ObjectHideFlags: 0
@@ -7577,7 +7578,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1000
+  drawBrushSize: 1250
   drawIntensity: 50
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1
@@ -7973,7 +7974,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   HeatmapLookUpTable: {fileID: 2800000, guid: ab77ce1799e0bf94996b9346d9424d65, type: 2}
-  drawBrushSize: 1500
+  drawBrushSize: 1750
   drawIntensity: 30
   minThreshDeltaHeatMap: 0.001
   useRaycastForUV: 1

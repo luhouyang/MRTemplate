@@ -162,6 +162,10 @@ namespace IndividualModel
             {
                 EyeGazeAndQNAOnly();
             }
+            else if (experimentNumber == 3)
+            {
+                EyeGazeAndVoice();
+            }
         }
 
         public void SetIsRecording(bool val)
@@ -326,6 +330,50 @@ namespace IndividualModel
 
                 dataModule.ExportPointCloud();
                 dataModule.ExportQuestionnaireAnswers();
+                dataModule.ExportModelTransform(gameObject);
+                //dataModule.Export3DModel(gameObject);
+                StopAudioRecording();
+                dataModule.SaveFileList();
+                SetIsRecording(false);
+
+                IndividualModelController.ToggleRecorded();
+            }
+        }
+
+        private void EyeGazeAndVoice()
+        {
+            // CHECK IF RECORDING STARTED 
+            if (!isRecording || IndividualModelController.currentModel == null) return;
+
+            // GET GAZED OBJECT
+            var eyeTarget = EyeTrackingTarget.LookedAtEyeTarget;
+            var gazedObject = eyeTarget != null ? eyeTarget.gameObject : null;
+
+            // RECORD GAZE DATA AND VOICE DATA
+            if (timer > recordVoiceDuration)
+            {
+                timer -= Time.deltaTime;
+
+                // Pass the gazed voxel ID to RecordGazeData
+                DataModule.GazeData gaze = RecordGaze();
+                if (gaze.localHitPosition != Vector3.zero)
+                {
+                    lastLocalHitPosition = gaze.localHitPosition;
+                    globalHitPosition = gaze.hitPosition;
+                    hitNormal = gaze.eyeDirection;
+                }
+
+                promptObject.GetComponent<TextMeshPro>().SetText($"VIEWING TIME: {(timer - recordVoiceDuration):F1}");
+
+                /* Start voice recording */
+                StartAudioRecording();
+            }
+            else
+            {
+                promptObject.GetComponent<TextMeshPro>().SetText("");
+                dataModule.ExportPointCloud();
+                dataModule.ExportModelTransform(gameObject);
+                //dataModule.ExportQuestionnaireAnswers();
                 //dataModule.Export3DModel(gameObject);
                 StopAudioRecording();
                 dataModule.SaveFileList();
@@ -369,7 +417,7 @@ namespace IndividualModel
             {
                 promptObject.GetComponent<TextMeshPro>().SetText("");
                 IndividualModelController.StopSineWave();
-
+                dataModule.ExportModelTransform(gameObject);
                 dataModule.ExportPointCloud();
                 dataModule.ExportQuestionnaireAnswers();
                 //dataModule.Export3DModel(gameObject);
@@ -458,11 +506,13 @@ namespace IndividualModel
         #region AUDIO DATA
         private void StartAudioRecording()
         {
-            // RECORD AUDIO FOR 60 SECONDS
-            recordedAudio = Microphone.Start(null, false, 60, audioSampleRate); // loop = false
-            isRecordingAudio = true;
-            chunkStartTime = Time.time;
-            Debug.Log("Started audio recording (60s chunk).");
+            if (!isRecordingAudio) {
+                // RECORD AUDIO FOR 60 SECONDS
+                recordedAudio = Microphone.Start(null, false, 60, audioSampleRate); // loop = false
+                isRecordingAudio = true;
+                chunkStartTime = Time.time;
+                Debug.Log("Started audio recording (60s chunk).");
+            }
         }
 
         private void StopAudioRecording()

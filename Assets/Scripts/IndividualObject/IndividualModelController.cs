@@ -23,6 +23,7 @@ namespace IndividualModel
         [SerializeField] private GameObject startButton;
         [SerializeField] private GameObject heatmapButton;
         [SerializeField] private GameObject highSamplingRateButton;
+        [SerializeField] private int globalExperimentNumber = 3;
 
         [Header("UI Settings")]
         [SerializeField] private GameObject promptObject;
@@ -82,6 +83,7 @@ namespace IndividualModel
                         modelRecorder.sessionPath = sessionPath;
                         modelRecorder.QNAPrompt = QNAPrompt;
                         modelRecorder.SetMarkerPrefabs(markerPrefabs);
+                        modelRecorder.SetExperimentNumber(globalExperimentNumber);
                         models[j].GetComponent<EyeTrackingTarget>().enabled = false;
                         models[j].GetComponent<ExtendedEyeGazeDataProvider>().enabled = false;
                         models[j].SetActive(false);
@@ -96,7 +98,7 @@ namespace IndividualModel
             SetHighSamplingRate(highSamplingRate);
 
             promptObject.SetActive(false);
-            QNAPrompt.SetActive(true);
+            //QNAPrompt.SetActive(true);
 
             // Load the first group of models
             group = groups[0];
@@ -197,7 +199,7 @@ namespace IndividualModel
             if (!currentRecorder.isRecording && !recorded && !isAskingLanguage)
             {
                 groupPromptObject.SetActive(false);
-                QNAPrompt.SetActive(true);
+                //QNAPrompt.SetActive(true);
                 startButton.SetActive(false);
                 currentRecorder.highSamplingRate = highSamplingRate;
                 if (highSamplingRate)
@@ -235,7 +237,7 @@ namespace IndividualModel
         #region Model Manipulation
         public void LoadModel()
         {
-            QNAPrompt.SetActive(true);
+            //QNAPrompt.SetActive(true);
 
             // Reset previous model position and rotation if there was a previous model
             if (previousModelPosition != Vector3.zero)

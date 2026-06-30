@@ -28,6 +28,11 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             public Vector3 hitPosition;
             public string targetName;
             public Vector3 localHitPosition;
+
+            public Vector3 localHeadPosition;
+            public Vector3 localHeadForward;
+            public Vector3 localEyeOrigin;
+            public Vector3 localEyeDirection;
         }
 
         [System.Serializable]
@@ -87,8 +92,30 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
             localBounds = targetRenderer.localBounds;
 
             pointcloudSB.AppendLine("x,y,z,timestamp,globalX,globalY,globalZ," +
-                "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
-                "eyeDirectionX,eyeDirectionY,eyeDirectionZ");
+        "headX,headY,headZ,headForwardX,headForwardY,headForwardZ,eyeOriginX,eyeOriginY,eyeOriginZ," +
+        "eyeDirectionX,eyeDirectionY,eyeDirectionZ," +
+        "localHeadX,localHeadY,localHeadZ,localHeadForwardX,localHeadForwardY,localHeadForwardZ," +
+        "localEyeOriginX,localEyeOriginY,localEyeOriginZ,localEyeDirX,localEyeDirY,localEyeDirZ");
+        }
+
+        public void ExportModelTransform(GameObject target)
+        {
+            if (target == null) return;
+
+            StringBuilder transformSB = new StringBuilder();
+            transformSB.AppendLine("TransformType,X,Y,Z");
+
+            // World Space
+            transformSB.AppendLine($"Position,{target.transform.position.x:F6},{target.transform.position.y:F6},{target.transform.position.z:F6}");
+            transformSB.AppendLine($"EulerAngles,{target.transform.eulerAngles.x:F6},{target.transform.eulerAngles.y:F6},{target.transform.eulerAngles.z:F6}");
+            transformSB.AppendLine($"LossyScale,{target.transform.lossyScale.x:F6},{target.transform.lossyScale.y:F6},{target.transform.lossyScale.z:F6}");
+
+            // Local Space
+            transformSB.AppendLine($"LocalPosition,{target.transform.localPosition.x:F6},{target.transform.localPosition.y:F6},{target.transform.localPosition.z:F6}");
+            transformSB.AppendLine($"LocalEulerAngles,{target.transform.localEulerAngles.x:F6},{target.transform.localEulerAngles.y:F6},{target.transform.localEulerAngles.z:F6}");
+            transformSB.AppendLine($"LocalScale,{target.transform.localScale.x:F6},{target.transform.localScale.y:F6},{target.transform.localScale.z:F6}");
+
+            File.WriteAllText(Path.Combine(saveDir, "model_transform.csv"), transformSB.ToString());
         }
 
         // Record Eye Gaze Data
@@ -116,6 +143,19 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
                 // CONVERT GAZE HIT FROM WORLD COORDINATE TO LOCAL COORDINATE
                 gaze.localHitPosition = target.transform.InverseTransformPoint(gaze.hitPosition);
 
+                // --> CALCULATE LOCAL HEAD AND EYE COORDINATES
+                Vector3 rawLocalHead = target.transform.InverseTransformPoint(gaze.headPosition);
+                gaze.localHeadPosition = UnapplyUnityTransforms(rawLocalHead, target.transform.eulerAngles);
+
+                Vector3 rawLocalHeadFwd = target.transform.InverseTransformDirection(gaze.headForward);
+                gaze.localHeadForward = UnapplyUnityTransforms(rawLocalHeadFwd, target.transform.eulerAngles);
+
+                Vector3 rawLocalEyeOrg = target.transform.InverseTransformPoint(gaze.eyeOrigin);
+                gaze.localEyeOrigin = UnapplyUnityTransforms(rawLocalEyeOrg, target.transform.eulerAngles);
+
+                Vector3 rawLocalEyeDir = target.transform.InverseTransformDirection(gaze.eyeDirection);
+                gaze.localEyeDirection = UnapplyUnityTransforms(rawLocalEyeDir, target.transform.eulerAngles);
+
                 // CHECK IF GAZE HIT IS WITHIN BOUNDS OF SELECTED MODEL
                 if (localBounds.Contains(gaze.localHitPosition))
                 {
@@ -124,11 +164,15 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
 
                     // ADD GAZE DATA
                     pointcloudSB.AppendLine($"{gaze.localHitPosition.x:F6},{gaze.localHitPosition.y:F6},{gaze.localHitPosition.z:F6},{Time.unscaledTimeAsDouble - startingTime:F6}," +
-                        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
-                        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
-                        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
-                        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
-                        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}");
+        $"{gaze.hitPosition.x:F6},{gaze.hitPosition.y:F6},{gaze.hitPosition.z:F6}," +
+        $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
+        $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
+        $"{gaze.eyeOrigin.x:F6},{gaze.eyeOrigin.y:F6},{gaze.eyeOrigin.z:F6}," +
+        $"{gaze.eyeDirection.x:F6},{gaze.eyeDirection.y:F6},{gaze.eyeDirection.z:F6}," +
+        $"{gaze.localHeadPosition.x:F6},{gaze.localHeadPosition.y:F6},{gaze.localHeadPosition.z:F6}," +
+        $"{gaze.localHeadForward.x:F6},{gaze.localHeadForward.y:F6},{gaze.localHeadForward.z:F6}," +
+        $"{gaze.localEyeOrigin.x:F6},{gaze.localEyeOrigin.y:F6},{gaze.localEyeOrigin.z:F6}," +
+        $"{gaze.localEyeDirection.x:F6},{gaze.localEyeDirection.y:F6},{gaze.localEyeDirection.z:F6}");
                 }
             }
             else
@@ -180,18 +224,37 @@ namespace Microsoft.MixedReality.Toolkit.MRTemplate
 
                 if (boundsCheck)
                 {
+                    // --> CALCULATE LOCAL HEAD AND EYE COORDINATES (HIGH SAMPLING)
+                    Vector3 rawLocalHead = target.transform.InverseTransformPoint(gaze.headPosition);
+                    gaze.localHeadPosition = UnapplyUnityTransforms(rawLocalHead, target.transform.eulerAngles);
+
+                    Vector3 rawLocalHeadFwd = target.transform.InverseTransformDirection(gaze.headForward);
+                    gaze.localHeadForward = UnapplyUnityTransforms(rawLocalHeadFwd, target.transform.eulerAngles);
+
+                    Vector3 rawLocalEyeOrg = target.transform.InverseTransformPoint(gaze.eyeOrigin);
+                    gaze.localEyeOrigin = UnapplyUnityTransforms(rawLocalEyeOrg, target.transform.eulerAngles);
+
+                    Vector3 rawLocalEyeDir = target.transform.InverseTransformDirection(gaze.eyeDirection);
+                    gaze.localEyeDirection = UnapplyUnityTransforms(rawLocalEyeDir, target.transform.eulerAngles);
+
                     // We now use raw World Space values from the provider directly.
                     // No InverseTransformPoint (which converts to Camera Local Space).
                     Vector3 eyeOriginGlobal = gaze.eyeOrigin;
                     Vector3 eyeDirGlobal = gaze.eyeDirection;
                     Vector3 hitPosGlobal = gaze.hitPosition;
 
+                    // --> UPDATE APPENDLINE TO INCLUDE LOCAL DATA
                     pointcloudSB.AppendLine($"{pos.x:F6},{pos.y:F6},{pos.z:F6},{(gaze.timestamp):F9}," +
-                        $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," + // Global Hit
+                        $"{hitPosGlobal.x:F6},{hitPosGlobal.y:F6},{hitPosGlobal.z:F6}," +
                         $"{gaze.headPosition.x:F6},{gaze.headPosition.y:F6},{gaze.headPosition.z:F6}," +
                         $"{gaze.headForward.x:F6},{gaze.headForward.y:F6},{gaze.headForward.z:F6}," +
-                        $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," + // Global Eye
-                        $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6},");
+                        $"{eyeOriginGlobal.x:F6},{eyeOriginGlobal.y:F6},{eyeOriginGlobal.z:F6}," +
+                        $"{eyeDirGlobal.x:F6},{eyeDirGlobal.y:F6},{eyeDirGlobal.z:F6}," +
+                        $"{gaze.localHeadPosition.x:F6},{gaze.localHeadPosition.y:F6},{gaze.localHeadPosition.z:F6}," +
+                        $"{gaze.localHeadForward.x:F6},{gaze.localHeadForward.y:F6},{gaze.localHeadForward.z:F6}," +
+                        $"{gaze.localEyeOrigin.x:F6},{gaze.localEyeOrigin.y:F6},{gaze.localEyeOrigin.z:F6}," +
+                        $"{gaze.localEyeDirection.x:F6},{gaze.localEyeDirection.y:F6},{gaze.localEyeDirection.z:F6}");
+                
                 }
             }
 
